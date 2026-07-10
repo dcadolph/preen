@@ -1,0 +1,12 @@
+{
+  "name": "gus",
+  "version": "0.1.0",
+  "description": "Split a messy working tree into clean, ordered, human-looking commits.",
+  "author": {
+    "name": "dcadolph",
+    "url": "https://github.com/dcadolph"
+  },
+  "homepage": "https://github.com/dcadolph/gus",
+  "license": "MIT",
+  "keywords": ["git", "commits", "workflow", "cleanup"]
+}

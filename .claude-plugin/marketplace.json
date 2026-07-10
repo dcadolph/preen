@@ -1,0 +1,14 @@
+{
+  "name": "gus",
+  "owner": {
+    "name": "dcadolph",
+    "url": "https://github.com/dcadolph"
+  },
+  "plugins": [
+    {
+      "name": "gus",
+      "source": ".",
+      "description": "Split a messy working tree into clean, ordered, human-looking commits."
+    }
+  ]
+}
