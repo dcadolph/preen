@@ -1,117 +1,171 @@
 ---
 name: gus
 description: >-
-  Split a messy working tree into clean, ordered, atomic commits with sensible
-  messages, and optionally human-spaced timestamps. Use when there is a large
-  pile of uncommitted changes that should become a logical commit history
-  instead of one giant dump. Triggers: "gus", "split my diff", "break these
-  changes into commits", "clean up my commit history", "atomize this diff".
+  Turn messy work into a clean, ordered set of atomic commits with sensible
+  messages. Splits a dirty working tree, absorbs a run of unpushed commits and
+  redoes them, and, only when explicitly asked, rewrites commits that are already
+  pushed. Handles the reset itself, shows a plan, and changes nothing until
+  approved. Triggers: "gus", "split my diff", "clean up my commit history", "fix
+  my last commits", "reword these commits", "resplit my commits".
 ---
 
 # gus
 
-The fixer for your commit history. Take one messy working tree and turn it into a
+The fixer for your commit history. Turn a messy working tree, a run of unpushed
+commits with a bad history, or, when you ask, already-pushed commits, into a
 clean, ordered set of atomic commits with sensible messages: the history the user
 would have written if they had committed carefully as they went.
 
-gus does not invent changes and does not push. It groups what is already there,
-shows a plan, and commits only after approval.
+gus does not invent changes. It groups what is already there, shows a plan, and
+acts only after approval. It handles the reset for the user, so they never have
+to unstage or rewind anything by hand.
+
+## Modes
+
+- Working tree. Uncommitted changes become clean commits.
+- Unpushed commits. Local commits that were never pushed are absorbed back into
+  the tree automatically and redone as clean commits. No manual reset.
+- Pushed commits. Only when explicitly asked, already-pushed commits are
+  rewritten and force-pushed with `--force-with-lease`, behind the guardrails in
+  Safety.
 
 ## When to run
 
-Run when the working tree has many uncommitted changes spanning multiple
-concerns and the user wants them broken into logical commits. Skip if the tree
-is clean or holds a single trivial change.
+Run when the user wants clean history out of a messy state: many uncommitted
+changes, a run of sloppy unpushed commits, or an explicit request to fix commits
+that are already pushed. Skip when the tree is clean and there is nothing to redo.
 
 ## Workflow
 
 ### 0. Preflight
 
-- Confirm the current directory is a git repository (`git rev-parse --git-dir`).
-- Capture the starting point: `git rev-parse HEAD` (may be empty on a fresh
-  repo). This is the undo anchor.
-- If nothing is uncommitted (`git status --porcelain` empty), report that there
-  is nothing to split and stop.
+- Confirm a git repository: `git rev-parse --git-dir`.
+- Record the current branch and the undo anchor: `git rev-parse HEAD`.
+- Read the state:
+  - Uncommitted work: `git status --porcelain=v1`.
+  - Upstream, if any: `git rev-parse --abbrev-ref @{upstream}` (fails when the
+    branch has none).
+  - Unpushed commits: with an upstream, `git log --oneline @{upstream}..HEAD`;
+    without one, compare to the default branch, or show recent commits and ask
+    how far back is unpushed.
+  - A commit is pushed when a remote branch contains it: `git branch -r
+    --contains <sha>` is non-empty.
+- If nothing is uncommitted and there are no commits to redo, say so and stop.
 
-### 1. Survey the changes
+### 1. Decide the scope
 
-Read the full change surface before grouping:
+Establish what gus operates on and the base commit it will reset to:
 
-- `git status --porcelain=v1` for the file-level picture.
-- `git diff` for unstaged hunks, `git diff --cached` for staged hunks.
-- List untracked files; read the notable ones so they land in the right group.
+- Working tree only: base is HEAD.
+- Absorb unpushed commits: base is the last pushed commit (`@{upstream}`), or the
+  fork point from the default branch when there is no upstream. Confirm by
+  showing the commits that will be redone.
+- Rewrite pushed commits: only if the user explicitly asked. Base is the commit
+  just before the range they want fixed. Read Safety before proceeding.
 
-### 2. Sweep first (optional)
+Never absorb or rewrite a commit the user did not clearly mean to touch. When in
+doubt, show the log and ask for the base.
 
-Scan the diff for obvious debris introduced by the work: stray debug prints,
-commented-out blocks, leftover scratch code, accidental file additions. List
-anything found and ask whether to drop it before committing. Never delete
-without approval.
+### 2. Back up, then absorb
 
-### 3. Group into atomic commits
+Before changing any history, save a recovery ref:
 
-Cluster the changes so each commit is one coherent idea that stands on its own.
-Guidelines:
+`git branch gus-backup/$(date +%Y%m%d-%H%M%S)`
 
-- One concern per commit. A new loader, the flag that wires it, and its tests
-  can be one commit or three depending on size and how the user works.
-- Keep formatting-only churn out of feature commits; give it its own commit.
+Then bring the in-scope commits back into the working tree with one soft reset,
+which keeps every change and deletes nothing:
+
+`git reset --soft <base>`
+
+Working-tree-only runs skip the reset. After this step, all in-scope changes sit
+in the index and tree, ready to regroup.
+
+### 3. Survey the changes
+
+- `git status --porcelain=v1` for the file picture.
+- `git diff` and `git diff --cached` for the hunks.
+- Read notable untracked files so they land in the right group.
+
+### 4. Sweep first (optional)
+
+Scan for debris introduced by the work: stray debug prints, commented-out blocks,
+leftover scratch code, accidental files. List anything found and ask whether to
+drop it. Never delete without approval.
+
+### 5. Group into atomic commits
+
+Cluster so each commit is one coherent idea that stands on its own.
+
+- One concern per commit.
+- Keep formatting-only churn out of feature commits.
 - Keep unrelated docs and config in their own commits.
 - Prefer commits that build and pass on their own.
 
-### 4. Order the commits
+### 6. Order the commits
 
-Sequence so each commit is coherent in isolation and dependencies land before
-the code that needs them. The goal is a history someone could bisect.
+Sequence so each commit is coherent in isolation and dependencies land first. The
+goal is a history someone could bisect.
 
-### 5. Show the plan
+### 7. Show the plan
 
-Present the plan before touching anything:
+Present before touching anything:
 
-- A numbered list of commits, each with its proposed message and the files or
-  hunks it will contain.
+- A numbered list of commits, each with its message and the files or hunks it
+  will contain.
+- The base being reset to, the backup ref, and, for a pushed rewrite, the exact
+  force-push that will run.
 - If timestamp spacing is requested, the planned spread.
 
-Ask to approve, edit, or abort. Nothing is staged or committed yet.
+Ask to approve, edit, or abort. Nothing is committed yet.
 
-### 6. Commit
+### 8. Commit
 
 For each planned commit, stage precisely, then commit.
 
 - Whole files: `git add -- <paths>`.
-- Untracked files that belong to the group: add them by path.
-- A file split across two commits: write only the wanted hunks to a patch and
-  `git apply --cached that.patch`, commit, and leave the rest in the tree for a
-  later commit. Never `git add -A` blindly.
-- Commit with `git commit -m "<subject>"`. Add a body only when the why is not
-  obvious from the subject and diff.
+- A file split across commits: write the wanted hunks to a patch and `git apply
+  --cached that.patch`, commit, and leave the rest for a later commit. Never `git
+  add -A` blindly.
+- `git commit -m "<subject>"`. Add a body only when the why is not obvious.
 
-Commit message style: match the repository's existing convention. If none is
-clear, default to a short imperative subject under 72 characters, no body unless
-needed, no attribution or tool footers.
+Message style: match the repository's convention. If none is clear, a short
+imperative subject under 72 characters, no body unless needed, no attribution or
+tool footers.
 
-### 7. Human-spaced timestamps (optional)
+### 9. Human-spaced timestamps (optional)
 
-If the user wants commit timestamps spread across a plausible window instead of
-all in the same second, back-date each commit:
+If the user wants timestamps spread across a plausible window instead of all in
+the same second, back-date each commit:
 
-- Build an ordered list of timestamps ending near now, spread across a plausible
-  window with irregular gaps.
-- Commit each with both dates set:
-  `GIT_AUTHOR_DATE="<ts>" GIT_COMMITTER_DATE="<ts>" git commit -m "..."`.
+`GIT_AUTHOR_DATE="<ts>" GIT_COMMITTER_DATE="<ts>" git commit -m "..."`
 
-This only affects the new, unpushed commits being created here.
+### 10. Publish
 
-### 8. Verify and report
+- Working tree or unpushed-absorb runs: do not push. The new commits are local.
+  Tell the user they are ready, and offer a normal `git push` when the branch
+  already tracks a remote.
+- Pushed rewrite: after approval, update the remote with `git push
+  --force-with-lease origin <branch>`. Never `git push --force`, which can clobber
+  work that arrived after the last fetch.
+
+### 11. Verify and report
 
 - Optionally run a build or test gate between commits if the user names one.
-- Finish with `git log --oneline -n <count>` so the result is visible.
+- Finish with `git log --oneline -n <count>`.
+- Name the backup ref so the user knows how to undo.
 
 ## Safety
 
-- Never push. Never use `--no-verify`.
-- Never rewrite commits that already exist upstream; gus only creates new commits
-  from uncommitted work.
-- The split is reversible. To undo, reset back to the anchor from step 0 with
-  `git reset --soft <anchor>` (or `git reset` to an empty tree on a fresh repo),
-  which returns every change to the working tree untouched.
+- Everything is reversible. Undo any run with the backup ref: `git reset --hard
+  gus-backup/<ts>`, or via the reflog.
+- Never `--no-verify`. Never `git push --force`; use `--force-with-lease`.
+- Plain split and unpushed-absorb never push. Only a pushed rewrite pushes, and
+  only after explicit approval.
+- Rewriting pushed history is opt-in and dangerous. Before doing it:
+  - Confirm the user explicitly asked to rewrite already-pushed commits.
+  - Refuse on a shared or protected branch, main and master especially, unless
+    the user confirms the branch is theirs alone. Warn that anyone who pulled the
+    old commits must reset to the rewritten history.
+  - Always create the backup ref first.
+  - Use `--force-with-lease` so the push aborts if the remote moved.
+- gus never invents changes and never touches a commit the user did not ask it to.
