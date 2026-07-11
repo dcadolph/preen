@@ -21,24 +21,35 @@ hand-staging.
 ## What it does
 
 - Surveys every uncommitted change: staged, unstaged, and untracked.
-- Groups them into atomic commits, one coherent idea each.
+- Absorbs a run of unpushed commits back into the tree and redoes them clean, no
+  manual reset.
+- Groups everything into atomic commits, one coherent idea each.
 - Writes a clear message for each, matching your repository's style.
 - Orders them so dependencies land first and the history could be bisected.
-- Shows the plan and commits only after you approve. Nothing moves before that.
+- Shows the plan and acts only after you approve. Nothing moves before that.
 - Optionally sweeps stray debug prints and dead code it spots in the diff.
 - Optionally spaces the commit timestamps across a plausible window instead of
   stamping them all in the same second.
+- Rewrites already-pushed commits when you explicitly ask, with a backup ref and
+  a `--force-with-lease` push, never on a shared branch without confirmation.
 
-It never invents changes, never rewrites commits that are already pushed, and
-never pushes.
+It never invents changes and never touches a commit you did not ask it to.
 
 ## Already committed the mess?
 
-gus works on the working tree. If you already committed a pile of local, unpushed
-work with a bad message, hand it back to the tree first, then run gus:
+No unstaging, no rewinding, nothing by hand. Point gus at it and it does the reset
+for you:
+
+- Unpushed commits with a bad history: gus absorbs them back into the tree and
+  redoes them as clean commits.
+- Already pushed: if you explicitly ask, gus rewrites them and force-pushes with
+  `--force-with-lease`, after showing you exactly what will change. It refuses to
+  rewrite shared branches like `main` unless you confirm the branch is yours
+  alone, and it always saves a backup ref you can reset to.
+
+Just run it:
 
 ```
-git reset --soft <sha-before-the-mess>
 /gus
 ```
 
@@ -91,3 +102,7 @@ git reset --soft <sha-before-the-split>
 ## License
 
 MIT.
+
+---
+
+*gus runs a clean operation. Somebody has to cook the books.*
