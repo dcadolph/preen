@@ -1,6 +1,7 @@
 # Sourced by the gus demo tape for the pushed-history scenario. Builds a repo
-# with a run of already-pushed messy commits and a gus stand-in that rewrites
-# them and force pushes to a local bare remote. Not used at runtime by gus.
+# with a few already-pushed messy commits and leaves one more change uncommitted,
+# so the tape can commit and push it live before invoking a gus stand-in that
+# rewrites the run and force pushes to a local bare remote. Not used at runtime.
 
 cd /tmp
 rm -rf gusdemo-pushed gusdemo-remote.git
@@ -21,7 +22,7 @@ git add -A
 git commit -q -m "Initial project"
 git push -q -u origin main
 
-# A run of messy commits with lazy messages, each pushed to origin.
+# A few messy commits with lazy messages, already pushed to origin.
 cat > internal/config/config.go <<'EOF'
 package config
 
@@ -52,6 +53,9 @@ var OutputDir string
 EOF
 git add -A && git commit -q -m "more"
 
+git push -q origin main
+
+# One more chunk of work, left uncommitted for the tape to commit and push live.
 cat > internal/store/store.go <<'EOF'
 package store
 
@@ -60,9 +64,6 @@ import "time"
 type Store struct{ Timeout time.Duration }
 EOF
 printf '# demo\n\nA small service.\n\n## Flags\n\n- --output-dir sets the output directory.\n' > README.md
-git add -A && git commit -q -m "wip"
-
-git push -q origin main
 
 # Scripted stand-in for the gus skill in pushed-rewrite mode.
 gus() {
