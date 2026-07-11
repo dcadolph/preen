@@ -92,6 +92,30 @@ Spread over ~2h ending now. Approve? (y / edit / n)
 Approve and it stages each group precisely, commits with clean messages, and
 prints the resulting log.
 
+## Message style
+
+gus writes a short imperative subject by default and matches your repo's
+convention. Dictate the format with options on the invocation:
+
+```
+/gus --no-emdash --no-semicolon --max-subject 50 --include-line-numbers
+```
+
+Or set defaults once in a `.gus.toml` at the repo root:
+
+```
+[commit]
+no-emdash = true
+no-semicolon = true
+max-subject = 50
+prefix = "ABC-123"
+```
+
+Options: `--no-emdash`, `--no-semicolon`, `--no-hyphen`, `--max-subject N`,
+`--no-period`, `--lower-subject`, `--conventional`, `--body always|auto|never`,
+`--include-files`, `--include-line-numbers`, `--prefix TEXT`, `--sign-off`.
+Invocation options beat the config file, which beats the defaults.
+
 ## Undo
 
 The split is reversible. Reset back to where you started and every change
