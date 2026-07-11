@@ -8,7 +8,7 @@
     {
       "name": "gus",
       "source": ".",
-      "description": "Split a messy working tree into clean, ordered, human-looking commits."
+      "description": "Turn a messy working tree or bad commits into clean, ordered, atomic commits."
     }
   ]
 }
