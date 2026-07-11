@@ -20,7 +20,7 @@ Enter
 Sleep 500ms
 Show
 
-Type "git status -s -uall"
+Type "git status"
 Enter
 Sleep 3s
 
