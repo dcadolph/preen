@@ -1,29 +1,46 @@
+![gus](gus-banner.png)
+
 # gus
 
-```
-        ~
-       (o)>     cluck.
-      /( )\
-        ^ ^
-```
+Clean up your commit history, automatically.
 
-The fixer for your commit history.
+You got in the zone and came out with forty changed files and no commits, or one
+giant blob with a message like `wip` that you are not proud of. gus turns that
+into a clean, ordered set of atomic commits with real messages: the history you
+would have written if you had committed carefully as you went.
 
-You finished a chunk of work and now the tree has forty changed files staged as
-one blob. `gus` turns that mess into a clean, ordered set of commits that reads
-like real, incremental work. Hide the messy operation behind a spotless front.
+Think `git add -p` and `git rebase -i`, done for you. gus reads everything you
+changed, groups it into coherent commits, writes a sensible message for each,
+orders them so the history bisects, and shows you the plan first. Nothing moves
+until you approve.
+
+Clean history is worth having on its own. It makes review readable, `git bisect`
+useful, and `git blame` honest. gus gets you there without the tedious
+hand-staging.
 
 ## What it does
 
 - Surveys every uncommitted change: staged, unstaged, and untracked.
 - Groups them into atomic commits, one coherent idea each.
+- Writes a clear message for each, matching your repository's style.
 - Orders them so dependencies land first and the history could be bisected.
 - Shows the plan and commits only after you approve. Nothing moves before that.
-- Optionally back-dates the commits with irregular gaps so the history looks
-  like a work session, not a burst of commits in the same second.
-- Optionally sweeps stray debug prints and dead code before committing.
+- Optionally sweeps stray debug prints and dead code it spots in the diff.
+- Optionally spaces the commit timestamps across a plausible window instead of
+  stamping them all in the same second.
 
-It never invents changes and never pushes.
+It never invents changes, never rewrites commits that are already pushed, and
+never pushes.
+
+## Already committed the mess?
+
+gus works on the working tree. If you already committed a pile of local, unpushed
+work with a bad message, hand it back to the tree first, then run gus:
+
+```
+git reset --soft <sha-before-the-mess>
+/gus
+```
 
 ## Install
 
