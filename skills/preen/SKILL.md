@@ -7,9 +7,11 @@ description: >-
   pushed. Handles the reset itself, shows a plan, and changes nothing until
   approved. Commit message style is configurable with flags or a .preen.toml.
   Run options: --scope preens only part of the tree, --gate runs a check after
-  each commit, --dry-run plans and stops.
+  each commit, --dry-run plans and stops, --fixup folds dirty changes into the
+  unpushed commits that introduced them, --yes skips the approval prompt.
   Triggers: "preen", "split my diff", "clean up my commit history", "fix
-  my last commits", "reword these commits", "resplit my commits".
+  my last commits", "reword these commits", "resplit my commits", "fold my
+  changes into the right commits".
 ---
 
 # preen
@@ -31,6 +33,8 @@ to unstage or rewind anything by hand.
 - Pushed commits. Only when explicitly asked, already-pushed commits are
   rewritten and force-pushed with `--force-with-lease`, behind the guardrails in
   Safety.
+- Fixup. With `--fixup`, dirty changes are folded into the unpushed commits
+  that introduced those lines instead of becoming new commits. See Fixup mode.
 
 ## Message style
 
@@ -82,6 +86,8 @@ Behavior options, separate from message style:
 | `--scope <pathspec>` | Preen only the paths matching the pathspec. Everything else stays uncommitted and untouched. |
 | `--gate <cmd>` | Run the command after each commit. On failure, stop and regroup. |
 | `--dry-run` | Survey, group, and show the plan, then stop. Nothing is staged or committed. |
+| `--fixup` | Fold each dirty change into the unpushed commit it belongs to instead of building new commits. See Fixup mode. |
+| `--yes` | Skip the approval prompt and run the shown plan. For scripted or headless use. |
 
 `--scope` combines with an absorb run only when every absorbed commit touches
 in-scope paths alone. Otherwise stop and explain: absorbing would turn
@@ -206,7 +212,8 @@ Present before touching anything:
 - If timestamp spacing is requested, the planned spread.
 
 Ask to approve, edit, or abort. Nothing is committed yet. With `--dry-run`,
-stop here.
+stop here. With `--yes`, skip the prompt and proceed with the shown plan;
+still show it first so the log records what ran.
 
 ### 8. Commit
 
@@ -267,6 +274,25 @@ enabled, note that signature timestamps will not match back-dated commits.
   build or test run.
 - Finish with `git log --oneline -n <count>`.
 - Name the backup ref so the user knows how to undo.
+
+## Fixup mode
+
+With `--fixup`, preen builds no new commits. It distributes the dirty changes
+into the existing unpushed commits they belong to, then autosquashes.
+
+- Preflight, backup ref, plan, and approval all apply as in a normal run. The
+  soft reset does not: existing commits stay in place.
+- Find each change's target: the unpushed commit that last touched those lines,
+  via `git log -L<start>,<end>:<path> <base>..HEAD` or `git blame`.
+- Only unpushed commits are targets. A change whose target is pushed, or whose
+  lines no unpushed commit introduced, goes in the plan as a leftover: offer to
+  leave it uncommitted or make it a new commit on top.
+- The plan lists each change, its target commit, and the leftovers.
+- After approval, stage each group precisely and `git commit --fixup=<sha>`,
+  then squash: `GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash <base>`.
+- On a rebase conflict, `git rebase --abort`, restore from the backup ref, and
+  report which change conflicted. Never leave a rebase half-done.
+- Commit messages are preserved, so message style options do not apply.
 
 ## Safety
 
