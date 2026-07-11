@@ -9,12 +9,37 @@ Set Height 760
 Set Padding 28
 Set TypingSpeed 75ms
 
+# Scenario one: rewrite a run of already-pushed messy commits.
 Hide
-Type@1ms "source hack/demo-env.sh"
+Type@1ms "GUSREPO=$PWD"
+Enter
+Type@1ms "source $GUSREPO/hack/demo-env-pushed.sh"
 Enter
 Sleep 1500ms
 Type@1ms "PROMPT='%F{green}➜%f  %F{cyan}~/demo%f '"
 Enter
+Type@1ms "clear"
+Enter
+Sleep 500ms
+Show
+
+Type "git log --oneline"
+Enter
+Sleep 3s
+
+Type "gus"
+Enter
+Sleep 4s
+
+Type "git log --oneline"
+Enter
+Sleep 3500ms
+
+# Scenario two: split a messy working tree.
+Hide
+Type@1ms "source $GUSREPO/hack/demo-env.sh"
+Enter
+Sleep 1500ms
 Type@1ms "clear"
 Enter
 Sleep 500ms
