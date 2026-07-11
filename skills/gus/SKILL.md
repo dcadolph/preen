@@ -5,7 +5,8 @@ description: >-
   messages. Splits a dirty working tree, absorbs a run of unpushed commits and
   redoes them, and, only when explicitly asked, rewrites commits that are already
   pushed. Handles the reset itself, shows a plan, and changes nothing until
-  approved. Triggers: "gus", "split my diff", "clean up my commit history", "fix
+  approved. Commit message style is configurable with flags or a .gus.toml.
+  Triggers: "gus", "split my diff", "clean up my commit history", "fix
   my last commits", "reword these commits", "resplit my commits".
 ---
 
@@ -29,6 +30,47 @@ to unstage or rewind anything by hand.
   rewritten and force-pushed with `--force-with-lease`, behind the guardrails in
   Safety.
 
+## Message style
+
+By default gus writes a short imperative subject, matches the repository's
+existing convention, keeps the subject under 72 characters, adds a body only when
+the why is not obvious, and never adds attribution or tool footers.
+
+Override the style with options on the invocation, for example `/gus --no-emdash
+--no-semicolon --max-subject 50 --include-line-numbers`, or set defaults once in a
+`.gus.toml` at the repository root. Invocation options win over the config file,
+which wins over the defaults.
+
+| Option | Effect |
+|--------|--------|
+| `--no-emdash` | No em or en dashes anywhere in a message. |
+| `--no-semicolon` | No semicolons. |
+| `--no-hyphen` | No hyphens. Reword compound terms instead. |
+| `--max-subject N` | Cap the subject at N characters. Default 72. |
+| `--no-period` | Drop a trailing period on the subject. |
+| `--lower-subject` | Lowercase the first letter of the subject. |
+| `--conventional` | Conventional Commits, `type(scope): subject`. |
+| `--body always\|auto\|never` | When to include a body. Default auto. |
+| `--include-files` | List the touched paths in the body. |
+| `--include-line-numbers` | Cite each file's changed line ranges as `path:start-end` in the body, read from `git diff --unified=0` hunk headers. |
+| `--prefix TEXT` | Prefix every subject, for example a ticket id. |
+| `--sign-off` | Add a `Signed-off-by` trailer. |
+
+A `.gus.toml` uses the option names without the leading dashes:
+
+```
+[commit]
+no-emdash = true
+no-semicolon = true
+max-subject = 50
+include-line-numbers = true
+prefix = "ABC-123"
+```
+
+Apply the style to every message, then verify each one conforms before
+committing: no banned characters, subject within the cap, prefix and trailers in
+place. Rewrite any message that violates the style rather than committing it.
+
 ## When to run
 
 Run when the user wants clean history out of a messy state: many uncommitted
@@ -41,6 +83,8 @@ that are already pushed. Skip when the tree is clean and there is nothing to red
 
 - Confirm a git repository: `git rev-parse --git-dir`.
 - Record the current branch and the undo anchor: `git rev-parse HEAD`.
+- Read the message style options from the invocation and any `.gus.toml`. See
+  Message style.
 - Read the state:
   - Uncommitted work: `git status --porcelain=v1`.
   - Upstream, if any: `git rev-parse --abbrev-ref @{upstream}` (fails when the
@@ -128,9 +172,10 @@ For each planned commit, stage precisely, then commit.
   add -A` blindly.
 - `git commit -m "<subject>"`. Add a body only when the why is not obvious.
 
-Message style: match the repository's convention. If none is clear, a short
-imperative subject under 72 characters, no body unless needed, no attribution or
-tool footers.
+Compose each message in the configured style. See Message style for the options
+and defaults. Before committing, verify each message conforms, no banned
+characters, subject within the cap, prefix and trailers present, and rewrite any
+that does not.
 
 ### 9. Human-spaced timestamps (optional)
 
