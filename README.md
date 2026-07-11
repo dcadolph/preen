@@ -29,6 +29,8 @@ hand-staging.
 - Writes a clear message for each, matching your repository's style.
 - Orders them so dependencies land first and the history could be bisected.
 - Shows the plan and acts only after you approve. Nothing moves before that.
+- Optionally runs your build or test gate after each commit, so the history
+  actually bisects.
 - Optionally sweeps stray debug prints and dead code it spots in the diff.
 - Optionally spaces the commit timestamps across a plausible window instead of
   stamping them all in the same second.
@@ -109,12 +111,24 @@ no-emdash = true
 no-semicolon = true
 max-subject = 50
 prefix = "ABC-123"
+
+[run]
+gate = "go test ./..."
+
+[protect]
+branches = ["develop"]
 ```
 
 Options: `--no-emdash`, `--no-semicolon`, `--no-hyphen`, `--max-subject N`,
 `--no-period`, `--lower-subject`, `--conventional`, `--body always|auto|never`,
 `--include-files`, `--include-line-numbers`, `--prefix TEXT`, `--sign-off`.
 Invocation options beat the config file, which beats the defaults.
+
+Run options: `--scope <pathspec>` preens only part of the tree and leaves the
+rest dirty, `--gate <cmd>` runs your check after each commit and stops on
+failure, `--dry-run` shows the plan and stops. If your repo has hooks that
+block automated commits, set `allow-no-verify = true` under `[run]` to grant
+standing consent to bypass them.
 
 ## Undo
 

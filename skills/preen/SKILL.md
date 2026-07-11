@@ -6,6 +6,8 @@ description: >-
   redoes them, and, only when explicitly asked, rewrites commits that are already
   pushed. Handles the reset itself, shows a plan, and changes nothing until
   approved. Commit message style is configurable with flags or a .preen.toml.
+  Run options: --scope preens only part of the tree, --gate runs a check after
+  each commit, --dry-run plans and stops.
   Triggers: "preen", "split my diff", "clean up my commit history", "fix
   my last commits", "reword these commits", "resplit my commits".
 ---
@@ -71,6 +73,34 @@ Apply the style to every message, then verify each one conforms before
 committing: no banned characters, subject within the cap, prefix and trailers in
 place. Rewrite any message that violates the style rather than committing it.
 
+## Run options
+
+Behavior options, separate from message style:
+
+| Option | Effect |
+|--------|--------|
+| `--scope <pathspec>` | Preen only the paths matching the pathspec. Everything else stays uncommitted and untouched. |
+| `--gate <cmd>` | Run the command after each commit. On failure, stop and regroup. |
+| `--dry-run` | Survey, group, and show the plan, then stop. Nothing is staged or committed. |
+
+`--scope` combines with an absorb run only when every absorbed commit touches
+in-scope paths alone. Otherwise stop and explain: absorbing would turn
+out-of-scope committed work back into uncommitted changes.
+
+A `.preen.toml` can set run defaults and extra protected branches:
+
+```
+[run]
+gate = "go test ./..."
+allow-no-verify = false
+
+[protect]
+branches = ["develop", "release/*"]
+```
+
+`allow-no-verify` is standing consent to bypass commit hooks with `--no-verify`
+when a hook rejects preen's commits outright. It defaults to false. See Safety.
+
 ## When to run
 
 Run when the user wants clean history out of a messy state: many uncommitted
@@ -82,9 +112,17 @@ that are already pushed. Skip when the tree is clean and there is nothing to red
 ### 0. Preflight
 
 - Confirm a git repository: `git rev-parse --git-dir`.
+- Stop cleanly when the repository is mid-operation: a rebase in progress (the
+  `rebase-merge` or `rebase-apply` directory under `git rev-parse --git-path`
+  exists), a merge (`MERGE_HEAD`), a cherry-pick (`CHERRY_PICK_HEAD`), or
+  unmerged paths in `git status --porcelain=v1` (states like `UU`). Report the
+  state and touch nothing.
 - Record the current branch and the undo anchor: `git rev-parse HEAD`.
-- Read the message style options from the invocation and any `.preen.toml`. See
-  Message style.
+- Record what is already staged versus unstaged. Pre-staged files are a signal:
+  the user may have marked a commit boundary by hand. Use it as a grouping
+  hint.
+- Read the message style and run options from the invocation and any
+  `.preen.toml`. See Message style and Run options.
 - Read the state:
   - Uncommitted work: `git status --porcelain=v1`.
   - Upstream, if any: `git rev-parse --abbrev-ref @{upstream}` (fails when the
@@ -106,6 +144,13 @@ Establish what preen operates on and the base commit it will reset to:
   showing the commits that will be redone.
 - Rewrite pushed commits: only if the user explicitly asked. Base is the commit
   just before the range they want fixed. Read Safety before proceeding.
+
+Check the range for merge commits before settling on a base: `git log --merges
+--oneline <base>..HEAD`. A soft reset across a merge flattens it, and everything
+the merge brought in becomes part of the diff, ready to be committed as if it
+were the user's own work. If the range contains a merge, re-anchor the base to
+the merge commit itself so only commits after it are redone, or stop and
+explain. Never flatten a merge.
 
 Never absorb or rewrite a commit the user did not clearly mean to touch. When in
 doubt, show the log and ask for the base.
@@ -160,17 +205,36 @@ Present before touching anything:
   force-push that will run.
 - If timestamp spacing is requested, the planned spread.
 
-Ask to approve, edit, or abort. Nothing is committed yet.
+Ask to approve, edit, or abort. Nothing is committed yet. With `--dry-run`,
+stop here.
 
 ### 8. Commit
 
 For each planned commit, stage precisely, then commit.
 
 - Whole files: `git add -- <paths>`.
-- A file split across commits: write the wanted hunks to a patch and `git apply
-  --cached that.patch`, commit, and leave the rest for a later commit. Never `git
-  add -A` blindly.
+- A file split across commits: regenerate the file's current diff, write the
+  wanted hunks to a patch, `git apply --cached that.patch`, commit, and leave
+  the rest for a later commit. Never `git add -A` blindly.
+- Regenerate the remaining diff after every commit. Offsets shift once an
+  earlier commit touches a file, and a pre-commit hook may have reformatted it.
+  Never reuse a patch computed before a previous commit.
+- Binary files never hunk-split. Each goes whole into exactly one commit.
+- Keep rename pairs together. Porcelain `R` entries, or a matching delete and
+  untracked add, belong in the same commit.
+- To split a new untracked file across commits, `git add -N <path>` first so
+  its hunks are visible to diff and `git apply --cached`.
+- Verify the stage is nonempty before committing: if `git diff --cached
+  --quiet` reports no changes, the plan is wrong. Stop and regroup instead of
+  creating an empty commit.
 - `git commit -m "<subject>"`. Add a body only when the why is not obvious.
+- If a hook rewrites files during a commit, re-diff before the next group. If a
+  hook rejects the commit outright, stop and show the hook output. Use
+  `--no-verify` only under standing consent (`allow-no-verify` in
+  `.preen.toml`) or an explicit grant in this session.
+- With a gate configured, run it after each commit. On failure, stop, report
+  which commit broke it, and regroup or amend with the user. The backup ref
+  still covers a full undo.
 
 Compose each message in the configured style. See Message style for the options
 and defaults. Before committing, verify each message conforms, no banned
@@ -184,6 +248,10 @@ the same second, back-date each commit:
 
 `GIT_AUTHOR_DATE="<ts>" GIT_COMMITTER_DATE="<ts>" git commit -m "..."`
 
+Constraints: timestamps strictly increase, the last is no later than now, and
+the first is no earlier than the base commit's date. With commit signing
+enabled, note that signature timestamps will not match back-dated commits.
+
 ### 10. Publish
 
 - Working tree or unpushed-absorb runs: do not push. The new commits are local.
@@ -195,21 +263,26 @@ the same second, back-date each commit:
 
 ### 11. Verify and report
 
-- Optionally run a build or test gate between commits if the user names one.
+- With a gate configured it already ran per commit; otherwise offer a final
+  build or test run.
 - Finish with `git log --oneline -n <count>`.
 - Name the backup ref so the user knows how to undo.
 
 ## Safety
 
-- Everything is reversible. Undo any run with the backup ref: `git reset --hard
-  preen-backup/<ts>`, or via the reflog.
-- Never `--no-verify`. Never `git push --force`; use `--force-with-lease`.
+- Everything is reversible. Undo any run with the backup ref: `git reset --keep
+  preen-backup/<ts>`, or via the reflog. Prefer `--keep` over `--hard`: `--hard`
+  also destroys anything the user did after the run.
+- No `--no-verify` without standing consent (`allow-no-verify = true` in
+  `.preen.toml`) or an explicit in-session grant. Never `git push --force`; use
+  `--force-with-lease`.
 - Plain split and unpushed-absorb never push. Only a pushed rewrite pushes, and
   only after explicit approval.
 - Rewriting pushed history is opt-in and dangerous. Before doing it:
   - Confirm the user explicitly asked to rewrite already-pushed commits.
-  - Refuse on a shared or protected branch, main and master especially, unless
-    the user confirms the branch is theirs alone. Warn that anyone who pulled the
+  - Refuse on a shared or protected branch, main and master especially, plus
+    any branch matched by `[protect]` in `.preen.toml`, unless the user
+    confirms the branch is theirs alone. Warn that anyone who pulled the
     old commits must reset to the rewritten history.
   - Always create the backup ref first.
   - Use `--force-with-lease` so the push aborts if the remote moved.
