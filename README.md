@@ -4,6 +4,8 @@
 
 Clean up your commit history, automatically.
 
+![gus demo](assets/demo.gif)
+
 You got in the zone and came out with forty changed files and no commits, or one
 giant blob with a message like `wip` that you are not proud of. gus turns that
 into a clean, ordered set of atomic commits with real messages: the history you
