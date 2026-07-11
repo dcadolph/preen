@@ -1,6 +1,6 @@
 {
   "name": "gus",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Turn a messy working tree or bad commits into clean, ordered, atomic commits.",
   "author": {
     "name": "dcadolph",
