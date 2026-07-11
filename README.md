@@ -25,6 +25,8 @@ hand-staging.
 - Surveys every uncommitted change: staged, unstaged, and untracked.
 - Absorbs a run of unpushed commits back into the tree and redoes them clean, no
   manual reset.
+- Folds dirty changes into the unpushed commits that introduced them with
+  `--fixup`, like git absorb with judgment.
 - Groups everything into atomic commits, one coherent idea each.
 - Writes a clear message for each, matching your repository's style.
 - Orders them so dependencies land first and the history could be bisected.
@@ -126,9 +128,21 @@ Invocation options beat the config file, which beats the defaults.
 
 Run options: `--scope <pathspec>` preens only part of the tree and leaves the
 rest dirty, `--gate <cmd>` runs your check after each commit and stops on
-failure, `--dry-run` shows the plan and stops. If your repo has hooks that
-block automated commits, set `allow-no-verify = true` under `[run]` to grant
-standing consent to bypass them.
+failure, `--dry-run` shows the plan and stops, `--fixup` folds dirty changes
+into the unpushed commits they belong to, `--yes` skips the approval prompt for
+scripted runs. If your repo has hooks that block automated commits, set
+`allow-no-verify = true` under `[run]` to grant standing consent to bypass
+them.
+
+## Limitations
+
+Honesty about what this is: preen is a skill, not a compiled program. The
+options are conventions the agent follows and then verifies against its own
+output, not a parser; the eval suite checks they hold, but they are enforced by
+instruction, not code. Splitting one file's hunks across several commits is the
+hardest move and can degrade to whole-file grouping on gnarly diffs. Very large
+diffs cost real tokens to survey. Every run creates a backup ref first, so the
+worst case is always one reset away.
 
 ## Undo
 
@@ -138,6 +152,13 @@ returns to the working tree:
 ```
 git reset --soft <sha-before-the-split>
 ```
+
+## Development
+
+`hack/eval.sh` runs the skill headless against fixture repos and asserts on
+the resulting git state: clean tree, commit counts, style conformance, merge
+and scope guards. It needs the claude CLI and spends real tokens; `hack/eval.sh`
+for the quick set, `--all` for everything.
 
 ## License
 
