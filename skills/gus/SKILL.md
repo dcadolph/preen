@@ -10,9 +10,9 @@ description: >-
 
 # gus
 
-The fixer for your commit history. Take one messy working tree and turn it into
-a clean, ordered set of commits that reads like real, incremental work. Hide the
-messy operation behind a spotless front.
+The fixer for your commit history. Take one messy working tree and turn it into a
+clean, ordered set of atomic commits with sensible messages: the history the user
+would have written if they had committed carefully as they went.
 
 gus does not invent changes and does not push. It groups what is already there,
 shows a plan, and commits only after approval.
@@ -64,7 +64,7 @@ Guidelines:
 Sequence so each commit is coherent in isolation and dependencies land before
 the code that needs them. The goal is a history someone could bisect.
 
-### 5. Show the plan (the front)
+### 5. Show the plan
 
 Present the plan before touching anything:
 
@@ -92,8 +92,8 @@ needed, no attribution or tool footers.
 
 ### 7. Human-spaced timestamps (optional)
 
-If the user wants the history to look like a real work session rather than a
-burst of commits in the same second, back-date each commit:
+If the user wants commit timestamps spread across a plausible window instead of
+all in the same second, back-date each commit:
 
 - Build an ordered list of timestamps ending near now, spread across a plausible
   window with irregular gaps.
