@@ -1,12 +1,12 @@
 {
-  "name": "gus",
-  "version": "0.3.0",
+  "name": "preen",
+  "version": "0.4.0",
   "description": "Turn a messy working tree or bad commits into clean, ordered, atomic commits.",
   "author": {
     "name": "dcadolph",
     "url": "https://github.com/dcadolph"
   },
-  "homepage": "https://github.com/dcadolph/gus",
+  "homepage": "https://github.com/dcadolph/preen",
   "license": "MIT",
   "keywords": ["git", "commits", "workflow", "cleanup"]
 }

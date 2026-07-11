@@ -1,10 +1,10 @@
-# Sourced by the gus demo tape. Builds a dirty sandbox repo and a gus stand-in
-# for the recording, then clears. Not used at runtime by gus itself.
+# Sourced by the preen demo tape. Builds a dirty sandbox repo and a preen stand-in
+# for the recording, then clears. Not used at runtime by preen itself.
 
 cd /tmp
-rm -rf gusdemo
-mkdir gusdemo
-cd gusdemo
+rm -rf preendemo
+mkdir preendemo
+cd preendemo
 git init -q
 git config user.email demo@example.com
 git config user.name demo
@@ -128,11 +128,11 @@ var (
 EOF
 printf '# demo\n\nA small service.\n\n## Flags\n\n- --output-dir sets the output directory.\n' > README.md
 
-# Scripted stand-in for the gus skill, so the tape can show a real split.
-gus() {
+# Scripted stand-in for the preen skill, so the tape can show a real split.
+preen() {
   git reset --soft HEAD~1 >/dev/null 2>&1
   git reset -q >/dev/null 2>&1
-  printf '\n\033[1mgus\033[0m absorbed the wip commit. Planned 5 commits:\n\n'
+  printf '\n\033[1mpreen\033[0m absorbed the wip commit. Planned 5 commits:\n\n'
   printf '  1. Add config validation   internal/config/config.go, loader.go\n'
   printf '  2. Add health endpoint     internal/api/handler.go, router.go\n'
   printf '  3. Add output dir flag     cmd/flags.go\n'

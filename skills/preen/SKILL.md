@@ -1,23 +1,23 @@
 ---
-name: gus
+name: preen
 description: >-
   Turn messy work into a clean, ordered set of atomic commits with sensible
   messages. Splits a dirty working tree, absorbs a run of unpushed commits and
   redoes them, and, only when explicitly asked, rewrites commits that are already
   pushed. Handles the reset itself, shows a plan, and changes nothing until
-  approved. Commit message style is configurable with flags or a .gus.toml.
-  Triggers: "gus", "split my diff", "clean up my commit history", "fix
+  approved. Commit message style is configurable with flags or a .preen.toml.
+  Triggers: "preen", "split my diff", "clean up my commit history", "fix
   my last commits", "reword these commits", "resplit my commits".
 ---
 
-# gus
+# preen
 
 The fixer for your commit history. Turn a messy working tree, a run of unpushed
 commits with a bad history, or, when you ask, already-pushed commits, into a
 clean, ordered set of atomic commits with sensible messages: the history the user
 would have written if they had committed carefully as they went.
 
-gus does not invent changes. It groups what is already there, shows a plan, and
+preen does not invent changes. It groups what is already there, shows a plan, and
 acts only after approval. It handles the reset for the user, so they never have
 to unstage or rewind anything by hand.
 
@@ -32,13 +32,13 @@ to unstage or rewind anything by hand.
 
 ## Message style
 
-By default gus writes a short imperative subject, matches the repository's
+By default preen writes a short imperative subject, matches the repository's
 existing convention, keeps the subject under 72 characters, adds a body only when
 the why is not obvious, and never adds attribution or tool footers.
 
-Override the style with options on the invocation, for example `/gus --no-emdash
+Override the style with options on the invocation, for example `/preen --no-emdash
 --no-semicolon --max-subject 50 --include-line-numbers`, or set defaults once in a
-`.gus.toml` at the repository root. Invocation options win over the config file,
+`.preen.toml` at the repository root. Invocation options win over the config file,
 which wins over the defaults.
 
 | Option | Effect |
@@ -56,7 +56,7 @@ which wins over the defaults.
 | `--prefix TEXT` | Prefix every subject, for example a ticket id. |
 | `--sign-off` | Add a `Signed-off-by` trailer. |
 
-A `.gus.toml` uses the option names without the leading dashes:
+A `.preen.toml` uses the option names without the leading dashes:
 
 ```
 [commit]
@@ -83,7 +83,7 @@ that are already pushed. Skip when the tree is clean and there is nothing to red
 
 - Confirm a git repository: `git rev-parse --git-dir`.
 - Record the current branch and the undo anchor: `git rev-parse HEAD`.
-- Read the message style options from the invocation and any `.gus.toml`. See
+- Read the message style options from the invocation and any `.preen.toml`. See
   Message style.
 - Read the state:
   - Uncommitted work: `git status --porcelain=v1`.
@@ -98,7 +98,7 @@ that are already pushed. Skip when the tree is clean and there is nothing to red
 
 ### 1. Decide the scope
 
-Establish what gus operates on and the base commit it will reset to:
+Establish what preen operates on and the base commit it will reset to:
 
 - Working tree only: base is HEAD.
 - Absorb unpushed commits: base is the last pushed commit (`@{upstream}`), or the
@@ -114,7 +114,7 @@ doubt, show the log and ask for the base.
 
 Before changing any history, save a recovery ref:
 
-`git branch gus-backup/$(date +%Y%m%d-%H%M%S)`
+`git branch preen-backup/$(date +%Y%m%d-%H%M%S)`
 
 Then bring the in-scope commits back into the working tree with one soft reset,
 which keeps every change and deletes nothing:
@@ -202,7 +202,7 @@ the same second, back-date each commit:
 ## Safety
 
 - Everything is reversible. Undo any run with the backup ref: `git reset --hard
-  gus-backup/<ts>`, or via the reflog.
+  preen-backup/<ts>`, or via the reflog.
 - Never `--no-verify`. Never `git push --force`; use `--force-with-lease`.
 - Plain split and unpushed-absorb never push. Only a pushed rewrite pushes, and
   only after explicit approval.
@@ -213,4 +213,4 @@ the same second, back-date each commit:
     old commits must reset to the rewritten history.
   - Always create the backup ref first.
   - Use `--force-with-lease` so the push aborts if the remote moved.
-- gus never invents changes and never touches a commit the user did not ask it to.
+- preen never invents changes and never touches a commit the user did not ask it to.

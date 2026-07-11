@@ -1,19 +1,19 @@
-# Sourced by the gus demo tape for the pushed-history scenario. Builds a repo
+# Sourced by the preen demo tape for the pushed-history scenario. Builds a repo
 # with a few already-pushed messy commits and leaves one more change uncommitted,
-# so the tape can commit and push it live before invoking a gus stand-in that
+# so the tape can commit and push it live before invoking a preen stand-in that
 # rewrites the run and force pushes to a local bare remote. Not used at runtime.
 
 cd /tmp
-rm -rf gusdemo-pushed gusdemo-remote.git
-git init -q --bare gusdemo-remote.git
-git init -q -b main gusdemo-pushed
-cd gusdemo-pushed
+rm -rf preendemo-pushed preendemo-remote.git
+git init -q --bare preendemo-remote.git
+git init -q -b main preendemo-pushed
+cd preendemo-pushed
 git config user.email demo@example.com
 git config user.name demo
 git config commit.gpgsign false
 git config core.pager cat
 git config log.decorate short
-git remote add origin /tmp/gusdemo-remote.git
+git remote add origin /tmp/preendemo-remote.git
 
 mkdir -p internal/config internal/api internal/store cmd
 printf 'module demo\n\ngo 1.22\n' > go.mod
@@ -65,12 +65,12 @@ type Store struct{ Timeout time.Duration }
 EOF
 printf '# demo\n\nA small service.\n\n## Flags\n\n- --output-dir sets the output directory.\n' > README.md
 
-# Scripted stand-in for the gus skill in pushed-rewrite mode.
-gus() {
-  git branch gus-backup/demo >/dev/null 2>&1
+# Scripted stand-in for the preen skill in pushed-rewrite mode.
+preen() {
+  git branch preen-backup/demo >/dev/null 2>&1
   git reset --soft HEAD~4 >/dev/null 2>&1
   git reset -q >/dev/null 2>&1
-  printf '\n\033[1mgus\033[0m these 4 commits are already pushed. Backup at gus-backup/demo.\n'
+  printf '\n\033[1mpreen\033[0m these 4 commits are already pushed. Backup at preen-backup/demo.\n'
   printf 'Planned 5 clean commits, then a force push with lease:\n\n'
   printf '  1. Add config loader     internal/config/config.go, loader.go\n'
   printf '  2. Add health handler    internal/api/handler.go\n'
