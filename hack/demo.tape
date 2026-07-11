@@ -11,9 +11,9 @@ Set TypingSpeed 75ms
 
 # Scenario one: split a messy working tree.
 Hide
-Type@1ms "GUSREPO=$PWD"
+Type@1ms "PREENREPO=$PWD"
 Enter
-Type@1ms "source $GUSREPO/hack/demo-env.sh"
+Type@1ms "source $PREENREPO/hack/demo-env.sh"
 Enter
 Sleep 1500ms
 Type@1ms "PROMPT='%F{green}➜%f  %F{cyan}~/demo%f '"
@@ -31,7 +31,7 @@ Type 'git add -A && git commit -m "wip"'
 Enter
 Sleep 2500ms
 
-Type "gus"
+Type "preen"
 Enter
 Sleep 4s
 
@@ -41,7 +41,7 @@ Sleep 3500ms
 
 # Scenario two: commit and push a mess, then rewrite the pushed history.
 Hide
-Type@1ms "source $GUSREPO/hack/demo-env-pushed.sh"
+Type@1ms "source $PREENREPO/hack/demo-env-pushed.sh"
 Enter
 Sleep 1500ms
 Type@1ms "clear"
@@ -61,7 +61,7 @@ Type "git log --oneline"
 Enter
 Sleep 3s
 
-Type "gus"
+Type "preen"
 Enter
 Sleep 4s
 

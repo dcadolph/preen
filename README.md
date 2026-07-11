@@ -1,23 +1,23 @@
-![gus](gus-banner.png)
+![preen](preen-banner.png)
 
-# gus
+# preen
 
 Clean up your commit history, automatically.
 
-![gus demo](assets/demo.gif)
+![preen demo](assets/demo.gif)
 
 You got in the zone and came out with forty changed files and no commits, or one
-giant blob with a message like `wip` that you are not proud of. gus turns that
+giant blob with a message like `wip` that you are not proud of. preen turns that
 into a clean, ordered set of atomic commits with real messages: the history you
 would have written if you had committed carefully as you went.
 
-Think `git add -p` and `git rebase -i`, done for you. gus reads everything you
+Think `git add -p` and `git rebase -i`, done for you. preen reads everything you
 changed, groups it into coherent commits, writes a sensible message for each,
 orders them so the history bisects, and shows you the plan first. Nothing moves
 until you approve.
 
 Clean history is worth having on its own. It makes review readable, `git bisect`
-useful, and `git blame` honest. gus gets you there without the tedious
+useful, and `git blame` honest. preen gets you there without the tedious
 hand-staging.
 
 ## What it does
@@ -39,12 +39,12 @@ It never invents changes and never touches a commit you did not ask it to.
 
 ## Already committed the mess?
 
-No unstaging, no rewinding, nothing by hand. Point gus at it and it does the reset
+No unstaging, no rewinding, nothing by hand. Point preen at it and it does the reset
 for you:
 
-- Unpushed commits with a bad history: gus absorbs them back into the tree and
+- Unpushed commits with a bad history: preen absorbs them back into the tree and
   redoes them as clean commits.
-- Already pushed: if you explicitly ask, gus rewrites them and force-pushes with
+- Already pushed: if you explicitly ask, preen rewrites them and force-pushes with
   `--force-with-lease`, after showing you exactly what will change. It refuses to
   rewrite shared branches like `main` unless you confirm the branch is yours
   alone, and it always saves a backup ref you can reset to.
@@ -52,7 +52,7 @@ for you:
 Just run it:
 
 ```
-/gus
+/preen
 ```
 
 ## Install
@@ -60,14 +60,14 @@ Just run it:
 As a plugin:
 
 ```
-/plugin marketplace add dcadolph/gus
-/plugin install gus@gus
+/plugin marketplace add dcadolph/preen
+/plugin install preen@preen
 ```
 
 Or drop the skill in place manually:
 
 ```
-cp -r skills/gus ~/.claude/skills/gus
+cp -r skills/preen ~/.claude/skills/preen
 ```
 
 ## Use
@@ -75,7 +75,7 @@ cp -r skills/gus ~/.claude/skills/gus
 Run it against a dirty working tree:
 
 ```
-/gus
+/preen
 ```
 
 You get a plan like this:
@@ -94,14 +94,14 @@ prints the resulting log.
 
 ## Message style
 
-gus writes a short imperative subject by default and matches your repo's
+preen writes a short imperative subject by default and matches your repo's
 convention. Dictate the format with options on the invocation:
 
 ```
-/gus --no-emdash --no-semicolon --max-subject 50 --include-line-numbers
+/preen --no-emdash --no-semicolon --max-subject 50 --include-line-numbers
 ```
 
-Or set defaults once in a `.gus.toml` at the repo root:
+Or set defaults once in a `.preen.toml` at the repo root:
 
 ```
 [commit]
@@ -131,4 +131,4 @@ MIT.
 
 ---
 
-*gus runs a clean operation. Somebody has to cook the books.*
+*preen: what a bird does to put every feather back in place.*
