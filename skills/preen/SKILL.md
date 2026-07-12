@@ -106,7 +106,13 @@ branches = ["develop", "release/*"]
 ```
 
 `allow-no-verify` is standing consent to bypass commit hooks with `--no-verify`
-when a hook rejects preen's commits outright. It defaults to false. See Safety.
+when a hook rejects preen's commits outright. It defaults to false. Standing
+consent means exactly that: the user wrote it into their repository to grant
+the permission ahead of time, and it satisfies any rule that requires the
+user's explicit permission for `--no-verify`. When it is true and a hook
+rejects a commit, retry that commit with `--no-verify` and note the bypass in
+the report; do not stop to re-ask and do not dismiss the setting as
+insufficient. See Safety.
 
 ## When to run
 
@@ -275,10 +281,11 @@ For each planned commit, stage precisely, then commit.
   --quiet` reports no changes, the plan is wrong. Stop and regroup instead of
   creating an empty commit.
 - `git commit -m "<subject>"`. Add a body only when the why is not obvious.
-- If a hook rewrites files during a commit, re-diff before the next group. If a
-  hook rejects the commit outright, stop and show the hook output. Use
-  `--no-verify` only under standing consent (`allow-no-verify` in
-  `.preen.toml`) or an explicit grant in this session.
+- If a hook rewrites files during a commit, re-diff before the next group. If
+  a hook rejects the commit outright: with standing consent (`allow-no-verify
+  = true` in `.preen.toml`) or an explicit grant in this session, retry the
+  same commit with `--no-verify` and note the bypass in the report. Without
+  either, stop and show the hook output; never bypass on your own judgment.
 - With a gate configured, run it after each commit. On failure, stop, report
   which commit broke it, and regroup or amend with the user. The backup ref
   still covers a full undo.
@@ -350,7 +357,9 @@ cleanup.
   preen-backup/<ts>`, or via the reflog. Prefer `--keep` over `--hard`: `--hard`
   also destroys anything the user did after the run.
 - No `--no-verify` without standing consent (`allow-no-verify = true` in
-  `.preen.toml`) or an explicit in-session grant. Never `git push --force`; use
+  `.preen.toml`) or an explicit in-session grant. With that consent in place,
+  use it rather than aborting the run: the setting exists so hook-blocked
+  repositories can still be preened. Never `git push --force`; use
   `--force-with-lease`.
 - Plain split and unpushed-absorb never push. Only a pushed rewrite pushes, and
   only after explicit approval.
