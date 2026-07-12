@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- New eval cases: c7 fixup targeting (fixes land in the commits that
+  introduced them, messages preserved), c8 allow-no-verify standing consent,
+  c9 hook rejection without consent stops cleanly.
+- Standing consent clarified: `allow-no-verify = true` in `.preen.toml` is
+  the user's explicit permission, granted ahead of time; a hook rejection is
+  retried with `--no-verify` and the bypass is noted in the report.
+- Demo: third scenario shows `--fixup` folding review fixes into the commits
+  that introduced them; `assets/demo.gif` regenerated.
+- Eval harness pins the skill under test: the prompt names the fixture's own
+  SKILL.md and declares it overriding, so a user-level skill copy or an
+  installed preen plugin can no longer shadow the version being evaluated.
+
 ## 0.7.0 - 2026-07-11
 
 - Plan edit grammar: `merge N into M`, `split N`, `move <path> to N`,
