@@ -88,6 +88,7 @@ Behavior options, separate from message style:
 | `--dry-run` | Survey, group, and show the plan, then stop. Nothing is staged or committed. |
 | `--fixup` | Fold each dirty change into the unpushed commit it belongs to instead of building new commits. See Fixup mode. |
 | `--yes` | Skip the approval prompt and run the shown plan. For scripted or headless use. |
+| `--prune-backups` | List preen-backup refs, confirm a selection, delete them, and stop. |
 
 `--scope` combines with an absorb run only when every absorbed commit touches
 in-scope paths alone. Otherwise stop and explain: absorbing would turn
@@ -151,12 +152,31 @@ Establish what preen operates on and the base commit it will reset to:
 - Rewrite pushed commits: only if the user explicitly asked. Base is the commit
   just before the range they want fixed. Read Safety before proceeding.
 
-Check the range for merge commits before settling on a base: `git log --merges
---oneline <base>..HEAD`. A soft reset across a merge flattens it, and everything
-the merge brought in becomes part of the diff, ready to be committed as if it
-were the user's own work. If the range contains a merge, re-anchor the base to
-the merge commit itself so only commits after it are redone, or stop and
-explain. Never flatten a merge.
+Merge check, required before any absorb or rewrite, no exceptions. Every plan
+that involves a reset MUST carry a `Merge check:` line built from the output
+of these commands, so a run that skipped them is visibly invalid. With the
+candidate base chosen, run:
+
+1. `git log --merges --oneline <base>..HEAD`
+2. For each merge listed: `git branch -r --contains <merge-sha>^2`
+
+Checking whether HEAD or the tip commits are pushed is NOT this check; only
+`<merge-sha>^2`, the merge's side-branch parent, decides. Then act on the
+output alone:
+
+- Command 1 prints nothing: no merges in range. Plan line: `Merge check: no
+  merges in <base>..HEAD`.
+- Command 2 non-empty for any merge: that merge's side branch is pushed.
+  Redoing it would re-commit published work as new commits, so the base MUST
+  move forward to the newest such merge; those commits are never redone. Plan
+  line quotes the remote branches found.
+- Command 2 empty for every merge: the merges are unpushed on both sides and
+  may be absorbed and linearized; the plan line says so and flags the
+  flattening.
+
+This is mechanical, not a judgment call: the branch's name or apparent
+ownership does not matter, only the command output, and `--yes` does not
+override it.
 
 Never absorb or rewrite a commit the user did not clearly mean to touch. When in
 doubt, show the log and ask for the base.
@@ -171,6 +191,10 @@ Then bring the in-scope commits back into the working tree with one soft reset,
 which keeps every change and deletes nothing:
 
 `git reset --soft <base>`
+
+Gate the reset first: rerun the step 1 merge check against the chosen base.
+If any merge in `<base>..HEAD` has a remote-reachable second parent, the base
+is wrong. Recompute it past that merge before resetting.
 
 Working-tree-only runs skip the reset. After this step, all in-scope changes sit
 in the index and tree, ready to regroup.
@@ -209,11 +233,27 @@ Present before touching anything:
   will contain.
 - The base being reset to, the backup ref, and, for a pushed rewrite, the exact
   force-push that will run.
+- For any absorb or rewrite, the `Merge check:` line from step 1 with the
+  command output it quotes. A plan that resets without this line is invalid:
+  go back and run the check, `--yes` included.
 - If timestamp spacing is requested, the planned spread.
 
 Ask to approve, edit, or abort. Nothing is committed yet. With `--dry-run`,
 stop here. With `--yes`, skip the prompt and proceed with the shown plan;
 still show it first so the log records what ran.
+
+Edits use these moves, applied one at a time with the full plan reshown after
+each:
+
+- `merge N into M`: combine two planned commits.
+- `split N`: break a commit apart; the user says how, by file or by concern.
+- `move <path> to N`: reassign a file or hunk to another commit.
+- `reword N: <subject>`: replace a commit message.
+- `drop <path>`: leave those changes uncommitted.
+- `reorder N,M,...`: resequence the plan.
+
+Free-form asks are fine too; map them onto these moves rather than improvising
+a new plan shape.
 
 ### 8. Commit
 
@@ -294,6 +334,16 @@ into the existing unpushed commits they belong to, then autosquashes.
   report which change conflicted. Never leave a rebase half-done.
 - Commit messages are preserved, so message style options do not apply.
 
+## Backup pruning
+
+Every run leaves a `preen-backup/<ts>` branch. With `--prune-backups`, list
+them with age and tip (`git for-each-ref 'refs/heads/preen-backup/*'`), show
+which are fully contained in the current branch, confirm a selection, and
+delete with `git branch -D`. Only branches under `preen-backup/` are ever
+candidates, and never one created by the current run. A normal run that
+finishes cleanly mentions older backups when they exist and offers the same
+cleanup.
+
 ## Safety
 
 - Everything is reversible. Undo any run with the backup ref: `git reset --keep
@@ -312,4 +362,8 @@ into the existing unpushed commits they belong to, then autosquashes.
     old commits must reset to the rewritten history.
   - Always create the backup ref first.
   - Use `--force-with-lease` so the push aborts if the remote moved.
+- Never flatten a merge whose side branch is pushed (`git branch -r
+  --contains <merge-sha>^2` non-empty), even when content is preserved.
+  Re-anchor the base past it instead. Only fully unpushed merges may be
+  linearized. See the merge check in step 1.
 - preen never invents changes and never touches a commit the user did not ask it to.

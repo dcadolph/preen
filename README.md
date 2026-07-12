@@ -94,7 +94,9 @@ Spread over ~2h ending now. Approve? (y / edit / n)
 ```
 
 Approve and it stages each group precisely, commits with clean messages, and
-prints the resulting log.
+prints the resulting log. Or edit the plan first: `merge 2 into 1`, `split 4`,
+`move README.md to 3`, `reword 2: Add loader tests`, `drop scratch.txt`,
+`reorder 2,1,3`.
 
 ## Message style
 
@@ -130,7 +132,7 @@ Run options: `--scope <pathspec>` preens only part of the tree and leaves the
 rest dirty, `--gate <cmd>` runs your check after each commit and stops on
 failure, `--dry-run` shows the plan and stops, `--fixup` folds dirty changes
 into the unpushed commits they belong to, `--yes` skips the approval prompt for
-scripted runs. If your repo has hooks that block automated commits, set
+scripted runs, `--prune-backups` cleans up old backup refs. If your repo has hooks that block automated commits, set
 `allow-no-verify = true` under `[run]` to grant standing consent to bypass
 them.
 

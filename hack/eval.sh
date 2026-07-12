@@ -29,7 +29,8 @@ new_fixture() {
   git -C "$dir" config user.email "eval@example.invalid"
   git -C "$dir" config commit.gpgsign false
   echo "# fixture" > "$dir/README.md"
-  git -C "$dir" add README.md
+  printf '.claude/\n' > "$dir/.gitignore"
+  git -C "$dir" add README.md .gitignore
   git -C "$dir" commit -qm "Seed fixture"
   mkdir -p "$dir/.claude/skills/preen"
   cp "$SKILL_SRC/SKILL.md" "$dir/.claude/skills/preen/SKILL.md"
@@ -53,7 +54,8 @@ run_preen() {
   (cd "$dir" && claude -p "$prompt" \
     --dangerously-skip-permissions \
     --max-turns "$MAX_TURNS" \
-    --output-format text) > "$dir/preen-eval.log" 2>&1 || true
+    --verbose \
+    --output-format stream-json) > "$dir.log" 2>&1 || true
 }
 
 assert() {
@@ -71,11 +73,11 @@ finish_case() {
   if $CASE_OK; then
     PASS=$((PASS + 1))
     say "$case_id passed"
-    rm -rf "$dir"
+    rm -rf "$dir" "$dir.log"
   else
     FAIL=$((FAIL + 1))
     FAILED_CASES+=("$case_id")
-    say "$case_id FAILED, fixture kept at $dir (log: preen-eval.log)"
+    say "$case_id FAILED, fixture kept at $dir (log: $dir.log)"
   fi
 }
 
@@ -141,13 +143,16 @@ c4() {
   finish_case c4 "$dir"
 }
 
-# c5: a merge commit in the absorb range is never flattened.
+# c5: a foreign merge in the absorb range is never flattened. The feature
+# branch is pushed before merging, so the merge's second parent is
+# remote-reachable and flattening it would re-commit pushed work.
 c5() {
-  say "c5: merge guard"
+  say "c5: foreign merge guard"
   local dir; dir="$(new_fixture)"; add_remote "$dir"; CASE_OK=true
   git -C "$dir" checkout -qb feature
   printf 'feature work\n' > "$dir/feature.txt"
   git -C "$dir" add feature.txt && git -C "$dir" commit -qm "Add feature file"
+  git -C "$dir" push -qu origin feature
   git -C "$dir" checkout -q main
   printf 'main work\n' > "$dir/main.txt"
   git -C "$dir" add main.txt && git -C "$dir" commit -qm "Add main file"
@@ -156,10 +161,11 @@ c5() {
   git -C "$dir" add after.txt && git -C "$dir" commit -qm "wip after merge"
   local merges_before; merges_before="$(git -C "$dir" rev-list --merges --count HEAD)"
   run_preen "$dir" "/preen --yes"
-  assert c5 "merge commit survived" \
+  assert c5 "foreign merge survived" \
     "[ \"\$(git -C '$dir' rev-list --merges --count HEAD)\" -eq '$merges_before' ]"
-  assert c5 "tree is clean or untouched" \
-    "[ -z \"\$(git -C '$dir' status --porcelain)\" ] || git -C '$dir' log --format=%s | grep -q 'wip after merge'"
+  assert c5 "wip commit was redone" \
+    "! git -C '$dir' log --format=%s | grep -qi '^wip'"
+  assert c5 "tree is clean" "[ -z \"\$(git -C '$dir' status --porcelain -uall)\" ]"
   finish_case c5 "$dir"
 }
 
@@ -171,8 +177,8 @@ c6() {
   printf 'package src\n' > "$dir/src/a.go"
   printf 'scratch experiment\n' > "$dir/exp/scratch.txt"
   run_preen "$dir" "/preen --yes --scope src/"
-  assert c6 "in-scope file committed" "! git -C '$dir' status --porcelain | grep -q 'src/a.go'"
-  assert c6 "out-of-scope file still dirty" "git -C '$dir' status --porcelain | grep -q 'exp/scratch.txt'"
+  assert c6 "in-scope file committed" "! git -C '$dir' status --porcelain -uall | grep -q 'src/a.go'"
+  assert c6 "out-of-scope file still dirty" "git -C '$dir' status --porcelain -uall | grep -q 'exp/scratch.txt'"
   finish_case c6 "$dir"
 }
 

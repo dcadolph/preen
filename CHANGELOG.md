@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.7.0 - 2026-07-11
+
+- Plan edit grammar: `merge N into M`, `split N`, `move <path> to N`,
+  `reword N: <subject>`, `drop <path>`, `reorder N,M,...`, with the plan
+  reshown after each move.
+- Backup pruning: `--prune-backups` lists and deletes old `preen-backup/`
+  refs behind a confirmation, and clean runs offer the same cleanup when old
+  backups exist.
+- Merge guard refined after eval findings: foreign merges (second parent
+  remote-reachable, e.g. pull merges) are never flattened and re-anchor the
+  base; the user's own local topic-branch merges may be linearized with
+  notice. The check is bound to the plan: every absorb or rewrite plan
+  carries a `Merge check:` line quoting the command output, and a plan
+  without one is invalid.
+- Eval harness fixes: skill install and agent log no longer dirty the
+  fixture, untracked-directory assertions use `-uall`, c5 now constructs
+  a genuinely foreign merge, logs capture the full agent trace
+  (stream-json), and passing cases remove their logs.
+- DESIGN.md added.
+
 ## 0.6.0 - 2026-07-11
 
 - Fixup mode: `--fixup` folds dirty changes into the unpushed commits that
