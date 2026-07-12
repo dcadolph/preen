@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.0 - 2026-07-11
+
+- Go CLI wrapper: `go install github.com/dcadolph/preen@latest` gives a
+  `preen` command that launches Claude Code with the skill from any
+  terminal. Interactive by default; `--headless` runs `claude -p` with
+  `--yes` and scoped permissions for CI and scripts. Flags after `--` pass
+  to the claude CLI verbatim.
+- The binary embeds the release's SKILL.md and pins the run to that exact
+  text, overriding any installed plugin or user-level skill copy, the same
+  pinning the eval harness uses.
+- Preflight checks fail fast before a session starts: claude on PATH,
+  inside a git repository, no rebase, merge, or cherry-pick in progress.
+
 ## 0.8.0 - 2026-07-11
 
 - New eval cases: c7 fixup targeting (fixes land in the commits that

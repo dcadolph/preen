@@ -1,6 +1,6 @@
 {
   "name": "preen",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Turn a messy working tree or bad commits into clean, ordered, atomic commits.",
   "author": {
     "name": "dcadolph",
@@ -8,5 +8,10 @@
   },
   "homepage": "https://github.com/dcadolph/preen",
   "license": "MIT",
-  "keywords": ["git", "commits", "workflow", "cleanup"]
+  "keywords": [
+    "git",
+    "commits",
+    "workflow",
+    "cleanup"
+  ]
 }
