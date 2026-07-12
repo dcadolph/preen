@@ -68,3 +68,29 @@ Sleep 4s
 Type "git log --oneline"
 Enter
 Sleep 4s
+
+# Scenario three: fold review fixes into the commits that introduced them.
+Hide
+Type@1ms "source $PREENREPO/hack/demo-env-fixup.sh"
+Enter
+Sleep 1500ms
+Type@1ms "clear"
+Enter
+Sleep 500ms
+Show
+
+Type "git log --oneline"
+Enter
+Sleep 2500ms
+
+Type "git status"
+Enter
+Sleep 3s
+
+Type "preen --fixup"
+Enter
+Sleep 4s
+
+Type "git log --oneline"
+Enter
+Sleep 4s
