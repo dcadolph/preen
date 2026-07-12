@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 - 2026-07-11
 
 - New eval cases: c7 fixup targeting (fixes land in the commits that
   introduced them, messages preserved), c8 allow-no-verify standing consent,
