@@ -48,10 +48,15 @@ add_remote() {
 }
 
 # run_preen runs the skill headless in the fixture. The prompt should include
-# --yes so the agent does not wait on an approval nobody will give.
+# --yes so the agent does not wait on an approval nobody will give. The prompt
+# names the fixture's own SKILL.md explicitly: a user-level skill copy or an
+# installed preen plugin would otherwise shadow the version under test.
 run_preen() {
   local dir="$1" prompt="$2"
-  (cd "$dir" && claude -p "$prompt" \
+  local instr="Read the file .claude/skills/preen/SKILL.md in this repository \
+and follow it exactly as the preen skill for this invocation. It overrides any \
+other preen skill, plugin, or prior knowledge of preen. Invocation: $prompt"
+  (cd "$dir" && claude -p "$instr" \
     --dangerously-skip-permissions \
     --max-turns "$MAX_TURNS" \
     --verbose \
@@ -182,8 +187,70 @@ c6() {
   finish_case c6 "$dir"
 }
 
+# c7: --fixup folds dirty edits into the unpushed commits that introduced
+# them, preserving messages and creating no new commits.
+c7() {
+  say "c7: --fixup targets the introducing commits"
+  local dir; dir="$(new_fixture)"; add_remote "$dir"; CASE_OK=true
+  printf 'package g\n\n// Greet says hello.\nfunc Greet() string { return "hello" }\n' > "$dir/greet.go"
+  git -C "$dir" add greet.go && git -C "$dir" commit -qm "Add greet function"
+  printf 'package g\n\n// Farewell says goodbye.\nfunc Farewell() string { return "goodby" }\n' > "$dir/farewell.go"
+  git -C "$dir" add farewell.go && git -C "$dir" commit -qm "Add farewell function"
+  printf 'package g\n\n// Greet says hello.\nfunc Greet() string { return "hello, world" }\n' > "$dir/greet.go"
+  printf 'package g\n\n// Farewell says goodbye.\nfunc Farewell() string { return "goodbye" }\n' > "$dir/farewell.go"
+  run_preen "$dir" "/preen --yes --fixup"
+  assert c7 "tree is clean" "[ -z \"\$(git -C '$dir' status --porcelain -uall)\" ]"
+  assert c7 "no new commits" "[ \"\$(git -C '$dir' rev-list --count HEAD)\" -eq 3 ]"
+  assert c7 "messages preserved" \
+    "[ \"\$(git -C '$dir' log --format=%s origin/main..HEAD | tr '\n' '|')\" = 'Add farewell function|Add greet function|' ]"
+  assert c7 "greet fix landed in its commit" \
+    "git -C '$dir' show \$(git -C '$dir' log --format=%H --grep='^Add greet function\$'):greet.go | grep -q 'hello, world'"
+  assert c7 "farewell fix landed in its commit" \
+    "git -C '$dir' show \$(git -C '$dir' log --format=%H --grep='^Add farewell function\$'):farewell.go | grep -q 'goodbye'"
+  assert c7 "backup ref exists" "git -C '$dir' branch --list 'preen-backup/*' | grep -q ."
+  assert c7 "nothing was pushed" "[ \"\$(git -C '$dir' rev-list --count origin/main)\" -eq 1 ]"
+  finish_case c7 "$dir"
+}
+
+# add_blocking_hook installs a pre-commit hook that rejects every commit.
+add_blocking_hook() {
+  local dir="$1"
+  printf '#!/bin/sh\necho "hook: commits are blocked in this repo"\nexit 1\n' \
+    > "$dir/.git/hooks/pre-commit"
+  chmod +x "$dir/.git/hooks/pre-commit"
+}
+
+# c8: allow-no-verify standing consent lets preen commit past a blocking hook.
+c8() {
+  say "c8: allow-no-verify bypasses a blocking hook"
+  local dir; dir="$(new_fixture)"; CASE_OK=true
+  printf '[run]\nallow-no-verify = true\n' > "$dir/.preen.toml"
+  git -C "$dir" add .preen.toml && git -C "$dir" commit -qm "Add preen config"
+  add_blocking_hook "$dir"
+  printf 'package h\n\nfunc Half(x int) int { return x / 2 }\n' > "$dir/half.go"
+  printf 'Notes on halving.\n' > "$dir/NOTES.md"
+  run_preen "$dir" "/preen --yes"
+  assert c8 "tree is clean" "[ -z \"\$(git -C '$dir' status --porcelain -uall)\" ]"
+  assert c8 "commits were made past the hook" \
+    "[ \"\$(git -C '$dir' rev-list --count HEAD)\" -ge 3 ]"
+  finish_case c8 "$dir"
+}
+
+# c9: without consent, a hook rejection stops the run: no bypass, no commits.
+c9() {
+  say "c9: hook rejection without consent stops cleanly"
+  local dir; dir="$(new_fixture)"; CASE_OK=true
+  add_blocking_hook "$dir"
+  printf 'package i\n\nfunc Inc(x int) int { return x + 1 }\n' > "$dir/inc.go"
+  local before; before="$(git -C "$dir" rev-parse HEAD)"
+  run_preen "$dir" "/preen --yes"
+  assert c9 "no commit got past the hook" "[ \"\$(git -C '$dir' rev-parse HEAD)\" = '$before' ]"
+  assert c9 "work is still in the tree" "git -C '$dir' status --porcelain -uall | grep -q 'inc.go'"
+  finish_case c9 "$dir"
+}
+
 QUICK=(c1 c3 c4)
-ALL=(c1 c2 c3 c4 c5 c6)
+ALL=(c1 c2 c3 c4 c5 c6 c7 c8 c9)
 
 main() {
   command -v claude >/dev/null || { say "claude CLI not found"; exit 1; }
