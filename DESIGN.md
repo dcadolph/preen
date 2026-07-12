@@ -55,10 +55,11 @@ These hold on every run and evals assert them where practical:
 `hack/eval.sh` is the regression suite: it builds fixture repos, runs the
 skill headless (`claude -p "/preen --yes ..."`), and asserts on the resulting
 git state. Cases: c1 basic split, c2 absorb, c3 style flags, c4 dry-run,
-c5 foreign merge guard, c6 scope. Quick set is c1/c3/c4; `--all` runs
-everything. Each case is a real agent run and costs tokens, so it is run by
-hand, not in CI. Failed fixtures are kept on disk with their logs for
-inspection.
+c5 foreign merge guard, c6 scope, c7 fixup targeting, c8 allow-no-verify
+consent, c9 hook rejection without consent. Quick set is c1/c3/c4; `--all`
+runs everything. Each case is a real agent run and costs tokens, so it is
+run by hand, not in CI. Failed fixtures are kept on disk with their
+stream-json agent traces for inspection; passing cases clean up both.
 
 Lessons already banked from the merge guard, which took four rule revisions:
 an unconditional "never flatten" got overridden because flattening local
@@ -76,6 +77,15 @@ output rather than a step the agent may drift past. Debugging this required
 full agent traces, so the harness logs stream-json, not just the final
 message.
 
+The harness lesson that came out of the hook-consent case: pin the skill
+under test. `/preen` in a fixture resolved against whatever preen the
+machine had, and a stale user-level copy under `~/.claude/skills` shadowed
+the fixture's file, so some failures were failures of a version that no
+longer existed and at least one rule revision reacted to a trace the revised
+text never produced. The eval prompt now names the fixture's own SKILL.md
+and declares it overriding. Results recorded before that pinning
+(c5, c7, c9 passes) count only once reproduced under it.
+
 ## Releases
 
 Bump `version` in `.claude-plugin/plugin.json`, add a `CHANGELOG.md` entry,
@@ -87,17 +97,12 @@ foreign-versus-local merge rule.
 
 Ordered by value:
 
-1. Green `--all` eval run after the merge-rule change (c5 was the holdout;
-   c1, c2, c3, c4, c6 pass).
-2. A `--fixup` eval case: dirty fixes on top of clean unpushed commits, assert
-   they land in the right targets and messages are preserved.
-3. Demo tape scenario for fixup, then regenerate `assets/demo.gif` with vhs.
-   The demo is fully scripted (a `preen` stand-in shell function, no agent
-   involved), so regeneration is free.
-4. Publish the announcement post. A draft lives in the dcadolph.dev repo at
+1. Publish the announcement post. A draft lives in the dcadolph.dev repo at
    `content/posts/preen-absorbs-your-bad-commits.md` with `draft: true`.
-5. Eval case for hook interaction (`allow-no-verify` honored, hook rejection
-   reported cleanly).
+
+Done since 0.7.0: fixup eval case (c7), hook-interaction cases (c8, c9),
+fixup demo scenario with the gif regenerated, and a full `--all` pass (9 of
+9) under the pinned harness on 2026-07-11.
 
 ## External artifacts
 
