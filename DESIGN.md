@@ -7,14 +7,23 @@ change.
 ## Shape
 
 preen is a Claude Code plugin. The product is `skills/preen/SKILL.md`: a
-prompt program the agent executes with git. There is no compiled code and no
-runtime of its own. Consequences of that shape drive everything else here:
-options are conventions the agent follows and verifies, not parsed flags, and
-quality is enforced by instruction plus evals, not by a type system.
+prompt program the agent executes with git. Options are conventions the
+agent follows and verifies, not parsed flags, and quality is enforced by
+instruction plus evals, not by a type system.
 
-Packaging is `.claude-plugin/plugin.json` (version lives here) and
-`marketplace.json`. Install is via the plugin marketplace or copying the
-skill directory.
+A thin Go CLI (`main.go`, `cmd/`) wraps the claude CLI so the skill runs
+from any terminal. It embeds the release's SKILL.md at build time, writes it
+to a temp file, and tells claude to follow that exact text, the same pinning
+the eval harness uses, so an installed plugin or stale skill copy cannot
+shadow it. The wrapper parses only its own flags (`--headless`,
+`--claude-bin`, `--version`, `--help`, `--` for claude passthrough);
+everything else is forwarded into the `/preen` invocation untouched. It is
+not a reimplementation: grouping and messages stay in the skill.
+
+Packaging is `.claude-plugin/plugin.json` (version lives here, kept in step
+with `cmd.Version`) and `marketplace.json`. Install is via the plugin
+marketplace, copying the skill directory, or
+`go install github.com/dcadolph/preen@latest` for the CLI.
 
 ## What it does
 

@@ -74,6 +74,13 @@ Or drop the skill in place manually:
 cp -r skills/preen ~/.claude/skills/preen
 ```
 
+Or install the CLI, which needs no plugin or skill install at all. It embeds
+this release's skill text and launches Claude Code with it:
+
+```
+go install github.com/dcadolph/preen@latest
+```
+
 ## Use
 
 Run it against a dirty working tree:
@@ -97,6 +104,19 @@ Approve and it stages each group precisely, commits with clean messages, and
 prints the resulting log. Or edit the plan first: `merge 2 into 1`, `split 4`,
 `move README.md to 3`, `reword 2: Add loader tests`, `drop scratch.txt`,
 `reorder 2,1,3`.
+
+The CLI takes the same flags from any terminal:
+
+```
+preen --fixup --scope internal/
+preen --headless --gate 'go test ./...'
+```
+
+Plain runs open a Claude Code session where you approve the plan as usual.
+`--headless` runs `claude -p` with `--yes` for CI and scripts. Flags after
+`--` go to the claude CLI itself. The binary carries its own copy of the
+skill, pinned at build time, so it behaves the same on every machine and
+overrides any installed preen plugin for that run.
 
 ## Message style
 
