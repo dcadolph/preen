@@ -1,0 +1,51 @@
+version: 2
+
+project_name: preen
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: .
+    binary: preen
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/dcadolph/preen/cmd.Version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  disable: true
+
+release:
+  mode: keep-existing
+
+homebrew_casks:
+  - name: preen
+    repository:
+      owner: dcadolph
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Casks
+    homepage: https://github.com/dcadolph/preen
+    description: Turn a messy working tree or bad commits into clean, ordered, atomic commits
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/preen"]
+          end
