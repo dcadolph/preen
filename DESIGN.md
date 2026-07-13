@@ -32,7 +32,8 @@ Three rewrite modes plus one distribution mode:
 - Working tree: group uncommitted changes into atomic commits.
 - Absorb: soft-reset a run of unpushed commits back into the tree and redo
   them clean.
-- Pushed rewrite: opt-in only, force-with-lease only, guarded.
+- Pushed rewrite: opt-in only (in words or `--pushed`), force-with-lease
+  only, guarded.
 - Fixup: fold dirty changes into the unpushed commits that introduced them,
   autosquash under the hood.
 
@@ -69,7 +70,10 @@ These hold on every run and evals assert them where practical:
 skill headless (`claude -p "/preen --yes ..."`), and asserts on the resulting
 git state. Cases: c1 basic split, c2 absorb, c3 style flags, c4 dry-run,
 c5 foreign merge guard, c6 scope, c7 fixup targeting, c8 allow-no-verify
-consent, c9 hook rejection without consent. Every case also asserts content
+consent, c9 hook rejection without consent, c10 spread timestamps (strictly
+increasing, never future, never before the base or the window), c11 pushed
+rewrite via `--pushed` (redone on a feature branch, remote updated with
+lease). Every case also asserts content
 conservation: the content tree (HEAD plus all uncommitted changes, via
 `git write-tree` on a scratch index) is identical before and after the run,
 so a run that dropped or invented a change fails deterministically without an
@@ -105,11 +109,15 @@ and declares it overriding. Results recorded before that pinning
 ## Releases
 
 Bump `version` in `.claude-plugin/plugin.json` and `cmd.Version`, add a
-`CHANGELOG.md` entry, tag `vX.Y.Z`. Versions to date: 0.5.0 hardening and run
-options, 0.6.0 fixup mode plus evals, 0.7.0 plan edit grammar, backup pruning,
-and the foreign-versus-local merge rule, 0.8.0 fixup and hook eval cases under
-the pinned harness, 0.9.0 the Go CLI wrapper, 0.10.0 the content-conservation
-invariant.
+`CHANGELOG.md` entry, tag `vX.Y.Z`. The tag triggers goreleaser: binaries for
+macOS, Linux, and Windows on the GitHub release and a Homebrew cask pushed to
+`dcadolph/homebrew-tap`. Versions to date: 0.5.0 hardening and run options,
+0.6.0 fixup mode plus evals, 0.7.0 plan edit grammar, backup pruning, and the
+foreign-versus-local merge rule, 0.8.0 fixup and hook eval cases under the
+pinned harness, 0.9.0 the Go CLI wrapper, 0.10.0 the content-conservation
+invariant, 0.11.0 the `--punctuation` style option, 0.11.1 the goreleaser
+release pipeline, 0.12.0 the `--spread` and `--pushed` run options with eval
+cases c10 and c11.
 
 ## Backlog
 
