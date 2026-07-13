@@ -286,8 +286,66 @@ c9() {
   finish_case c9 "$dir"
 }
 
+# c10: --spread back-dates commits across the window: timestamps strictly
+# increase, none in the future, none before the base commit or the window
+# start. The seed commit is re-dated two hours back so the window has room.
+c10() {
+  say "c10: --spread spaces commit timestamps"
+  local dir; dir="$(new_fixture)"; CASE_OK=true
+  local past; past=$(( $(date +%s) - 7200 ))
+  GIT_COMMITTER_DATE="@$past" GIT_AUTHOR_DATE="@$past" \
+    git -C "$dir" commit -q --amend --no-edit
+  printf 'package j\n\nfunc Dbl(x int) int { return x * 2 }\n' > "$dir/dbl.go"
+  printf 'Notes on doubling.\n' > "$dir/NOTES.md"
+  printf 'linters:\n  enable: [misspell]\n' > "$dir/.golangci.yml"
+  run_preen "$dir" "/preen --yes --spread 1h"
+  local now; now="$(date +%s)"
+  local stamps sorted last first_new
+  stamps="$(git -C "$dir" log --reverse --format=%ct | tr '\n' ' ')"
+  sorted="$(git -C "$dir" log --format=%ct | sort -n -u | tr '\n' ' ')"
+  last="$(git -C "$dir" log -1 --format=%ct)"
+  first_new="$(git -C "$dir" log --reverse --format=%ct | sed -n 2p)"
+  assert c10 "tree is clean" "[ -z \"\$(git -C '$dir' status --porcelain -uall)\" ]"
+  assert c10 "made at least 2 commits" "[ \"\$(git -C '$dir' rev-list --count HEAD)\" -ge 3 ]"
+  assert c10 "timestamps strictly increase" "[ '$stamps' = '$sorted' ]"
+  assert c10 "no timestamp in the future" "[ '$last' -le '$now' ]"
+  assert c10 "first new commit not before the base" "[ '$first_new' -ge '$past' ]"
+  assert c10 "first new commit inside the window" "[ '$first_new' -ge $(( now - 4200 )) ]"
+  assert_conserved c10 "$dir"
+  finish_case c10 "$dir"
+}
+
+# c11: --pushed grants the explicit ask a pushed rewrite requires: sloppy
+# commits already pushed on a feature branch are redone and force-pushed with
+# lease. No base value, so the base resolves to the merge-base with main.
+c11() {
+  say "c11: --pushed rewrites pushed commits"
+  local dir; dir="$(new_fixture)"; add_remote "$dir"; CASE_OK=true
+  git -C "$dir" checkout -qb feature
+  printf 'package k\n\nfunc Sq(x int) int { return x * x }\n' > "$dir/sq.go"
+  git -C "$dir" add sq.go && git -C "$dir" commit -qm "wip"
+  printf 'Notes on squaring.\n' > "$dir/NOTES.md"
+  printf '\n// Doc line.\n' >> "$dir/sq.go"
+  git -C "$dir" add -A && git -C "$dir" commit -qm "stuff idk"
+  git -C "$dir" push -qu origin feature
+  run_preen "$dir" "/preen --yes --pushed"
+  local remote_tip
+  remote_tip="$(git -C "$dir" ls-remote origin feature | cut -f1)"
+  assert c11 "tree is clean" "[ -z \"\$(git -C '$dir' status --porcelain -uall)\" ]"
+  assert c11 "wip subjects are gone" \
+    "! git -C '$dir' log --format=%s | grep -qiE '^(wip|stuff)'"
+  assert c11 "seed commit untouched" "git -C '$dir' log --format=%s | grep -q 'Seed fixture'"
+  assert c11 "remote feature matches the rewrite" \
+    "[ '$remote_tip' = \"\$(git -C '$dir' rev-parse HEAD)\" ]"
+  assert c11 "main was not touched" \
+    "[ \"\$(git -C '$dir' rev-list --count origin/main)\" -eq 1 ]"
+  assert c11 "backup ref exists" "git -C '$dir' branch --list 'preen-backup/*' | grep -q ."
+  assert_conserved c11 "$dir"
+  finish_case c11 "$dir"
+}
+
 QUICK=(c1 c3 c4)
-ALL=(c1 c2 c3 c4 c5 c6 c7 c8 c9)
+ALL=(c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11)
 
 main() {
   command -v claude >/dev/null || { say "claude CLI not found"; exit 1; }
