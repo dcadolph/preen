@@ -2,6 +2,9 @@
 
 # preen
 
+[![Release](https://img.shields.io/github/v/release/dcadolph/preen)](https://github.com/dcadolph/preen/releases)
+[![License](https://img.shields.io/github/license/dcadolph/preen)](LICENSE)
+
 Clean up your commit history, automatically.
 
 ![preen demo](assets/demo.gif)

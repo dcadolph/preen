@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.1 - 2026-07-12
+
+- Release pipeline: goreleaser builds binaries for macOS, Linux, and Windows
+  on every tag and publishes a Homebrew cask to `dcadolph/homebrew-tap`.
+  Install with `brew install --cask dcadolph/tap/preen`.
+- README badges and install docs for the new channels.
+
 ## 0.11.0 - 2026-07-12
 
 - New `--punctuation always|auto|never` message style option controls
