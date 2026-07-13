@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.0 - 2026-07-12
+
+- New `--punctuation always|auto|never` message style option controls
+  terminal punctuation: `always` ends the subject and every body sentence
+  with a period, `never` adds none and drops trailing periods, `auto`
+  (default) matches the repository's convention. Replaces `--no-period`,
+  which only covered the subject.
+- Eval case c3 asserts the setting holds: run with `--punctuation always`,
+  every subject must end with a period.
+
 ## 0.10.0 - 2026-07-12
 
 - Content-conservation check: preen records the full content tree before it

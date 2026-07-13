@@ -53,7 +53,7 @@ which wins over the defaults.
 | `--no-semicolon` | No semicolons. |
 | `--no-hyphen` | No hyphens. Reword compound terms instead. |
 | `--max-subject N` | Cap the subject at N characters. Default 72. |
-| `--no-period` | Drop a trailing period on the subject. |
+| `--punctuation always\|auto\|never` | Terminal punctuation on sentences. `always` ends the subject and every body sentence with a period. `never` adds none and drops trailing periods everywhere. `auto` matches the repository's convention. Default auto. |
 | `--lower-subject` | Lowercase the first letter of the subject. |
 | `--conventional` | Conventional Commits, `type(scope): subject`. |
 | `--body always\|auto\|never` | When to include a body. Default auto. |
@@ -74,8 +74,9 @@ prefix = "ABC-123"
 ```
 
 Apply the style to every message, then verify each one conforms before
-committing: no banned characters, subject within the cap, prefix and trailers in
-place. Rewrite any message that violates the style rather than committing it.
+committing: no banned characters, subject within the cap, punctuation per the
+setting, prefix and trailers in place. Rewrite any message that violates the
+style rather than committing it.
 
 ## Run options
 
@@ -305,8 +306,8 @@ For each planned commit, stage precisely, then commit.
 
 Compose each message in the configured style. See Message style for the options
 and defaults. Before committing, verify each message conforms, no banned
-characters, subject within the cap, prefix and trailers present, and rewrite any
-that does not.
+characters, subject within the cap, punctuation per the setting, prefix and
+trailers present, and rewrite any that does not.
 
 ### 9. Human-spaced timestamps (optional)
 
