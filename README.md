@@ -78,8 +78,15 @@ Or install the CLI, which needs no plugin or skill install at all. It embeds
 this release's skill text and launches Claude Code with it:
 
 ```
+brew install --cask dcadolph/tap/preen
+```
+
+```
 go install github.com/dcadolph/preen@latest
 ```
+
+Prebuilt binaries for macOS, Linux, and Windows are attached to each
+[release](https://github.com/dcadolph/preen/releases).
 
 ## Use
 
