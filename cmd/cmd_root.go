@@ -17,8 +17,8 @@ const usage = `usage: preen [skill flags] [-- claude flags]
 
 Runs the preen skill through the Claude Code CLI. Every flag except the
 wrapper flags below is passed to the skill unchanged: --scope, --gate,
---dry-run, --fixup, --yes, message style flags, and anything else the
-skill understands.
+--dry-run, --fixup, --yes, --spread, --pushed, message style flags, and
+anything else the skill understands.
 
 Wrapper flags:
   --headless        Run claude non-interactively (claude -p) and add --yes

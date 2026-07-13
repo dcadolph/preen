@@ -8,7 +8,9 @@ description: >-
   approved. Commit message style is configurable with flags or a .preen.toml.
   Run options: --scope preens only part of the tree, --gate runs a check after
   each commit, --dry-run plans and stops, --fixup folds dirty changes into the
-  unpushed commits that introduced them, --yes skips the approval prompt.
+  unpushed commits that introduced them, --yes skips the approval prompt,
+  --spread spaces the commit timestamps across a window, --pushed grants the
+  explicit ask a pushed rewrite requires.
   Triggers: "preen", "split my diff", "clean up my commit history", "fix
   my last commits", "reword these commits", "resplit my commits", "fold my
   changes into the right commits".
@@ -30,9 +32,9 @@ to unstage or rewind anything by hand.
 - Working tree. Uncommitted changes become clean commits.
 - Unpushed commits. Local commits that were never pushed are absorbed back into
   the tree automatically and redone as clean commits. No manual reset.
-- Pushed commits. Only when explicitly asked, already-pushed commits are
-  rewritten and force-pushed with `--force-with-lease`, behind the guardrails in
-  Safety.
+- Pushed commits. Only when explicitly asked, in words or with `--pushed`,
+  already-pushed commits are rewritten and force-pushed with
+  `--force-with-lease`, behind the guardrails in Safety.
 - Fixup. With `--fixup`, dirty changes are folded into the unpushed commits
   that introduced those lines instead of becoming new commits. See Fixup mode.
 
@@ -89,17 +91,28 @@ Behavior options, separate from message style:
 | `--dry-run` | Survey, group, and show the plan, then stop. Nothing is staged or committed. |
 | `--fixup` | Fold each dirty change into the unpushed commit it belongs to instead of building new commits. See Fixup mode. |
 | `--yes` | Skip the approval prompt and run the shown plan. For scripted or headless use. |
+| `--spread <window\|auto>` | Space the commit timestamps across a window ending now, for example `--spread 2h`. `auto` picks a plausible window from the size of the run. See Human-spaced timestamps. |
+| `--pushed [<base>]` | The explicit ask a pushed rewrite requires, as a flag. The optional value is the commit just before the range to redo. |
 | `--prune-backups` | List preen-backup refs, confirm a selection, delete them, and stop. |
 
 `--scope` combines with an absorb run only when every absorbed commit touches
 in-scope paths alone. Otherwise stop and explain: absorbing would turn
 out-of-scope committed work back into uncommitted changes.
 
+`--pushed` satisfies the explicit-ask requirement for rewriting pushed
+commits; every other guardrail in Safety still applies, protected branches
+included. Without a value, the base is the merge-base with the default branch
+when the current branch is not the default. On the default branch a base is
+required: ask for one, or in a headless run stop and report that `--pushed`
+needs a value there. Consent to rewrite published history is granted per
+invocation, so `.preen.toml` cannot set it.
+
 A `.preen.toml` can set run defaults and extra protected branches:
 
 ```
 [run]
 gate = "go test ./..."
+spread = "2h"
 allow-no-verify = false
 
 [protect]
@@ -169,8 +182,10 @@ Establish what preen operates on and the base commit it will reset to:
 - Absorb unpushed commits: base is the last pushed commit (`@{upstream}`), or the
   fork point from the default branch when there is no upstream. Confirm by
   showing the commits that will be redone.
-- Rewrite pushed commits: only if the user explicitly asked. Base is the commit
-  just before the range they want fixed. Read Safety before proceeding.
+- Rewrite pushed commits: only if the user explicitly asked, in words or with
+  `--pushed`. Base is the commit just before the range they want fixed: the
+  `--pushed` value when one was given, else the merge-base with the default
+  branch on a feature branch, else ask. Read Safety before proceeding.
 
 Merge check, required before any absorb or rewrite, no exceptions. Every plan
 that involves a reset MUST carry a `Merge check:` line built from the output
@@ -256,7 +271,8 @@ Present before touching anything:
 - For any absorb or rewrite, the `Merge check:` line from step 1 with the
   command output it quotes. A plan that resets without this line is invalid:
   go back and run the check, `--yes` included.
-- If timestamp spacing is requested, the planned spread.
+- If timestamp spacing is requested, with `--spread` or in words, the planned
+  window, for example `Spread over ~2h ending now`.
 
 Ask to approve, edit, or abort. Nothing is committed yet. With `--dry-run`,
 stop here. With `--yes`, skip the prompt and proceed with the shown plan;
@@ -311,14 +327,21 @@ trailers present, and rewrite any that does not.
 
 ### 9. Human-spaced timestamps (optional)
 
-If the user wants timestamps spread across a plausible window instead of all in
-the same second, back-date each commit:
+With `--spread`, a `spread` value in `.preen.toml`, or a request in words,
+spread the timestamps across a window ending now instead of stamping every
+commit in the same second. Back-date each commit:
 
 `GIT_AUTHOR_DATE="<ts>" GIT_COMMITTER_DATE="<ts>" git commit -m "..."`
 
+A duration value like `30m`, `2h`, or `1d` sets the window length. `auto`
+picks a plausible window from the number and size of the commits: minutes for
+a small run, a few hours for a large one. Vary the gaps between commits rather
+than dividing the window evenly.
+
 Constraints: timestamps strictly increase, the last is no later than now, and
-the first is no earlier than the base commit's date. With commit signing
-enabled, note that signature timestamps will not match back-dated commits.
+the first is no earlier than the base commit's date; shrink the window to fit
+when it would reach back past the base. With commit signing enabled, note that
+signature timestamps will not match back-dated commits.
 
 ### 10. Publish
 
@@ -388,7 +411,8 @@ cleanup.
 - Plain split and unpushed-absorb never push. Only a pushed rewrite pushes, and
   only after explicit approval.
 - Rewriting pushed history is opt-in and dangerous. Before doing it:
-  - Confirm the user explicitly asked to rewrite already-pushed commits.
+  - Confirm the user explicitly asked to rewrite already-pushed commits, in
+    words or with `--pushed` on the invocation.
   - Refuse on a shared or protected branch, main and master especially, plus
     any branch matched by `[protect]` in `.preen.toml`, unless the user
     confirms the branch is theirs alone. Warn that anyone who pulled the

@@ -38,9 +38,10 @@ hand-staging.
   actually bisects.
 - Optionally sweeps stray debug prints and dead code it spots in the diff.
 - Optionally spaces the commit timestamps across a plausible window instead of
-  stamping them all in the same second.
-- Rewrites already-pushed commits when you explicitly ask, with a backup ref and
-  a `--force-with-lease` push, never on a shared branch without confirmation.
+  stamping them all in the same second: `--spread 2h`, or `--spread auto`.
+- Rewrites already-pushed commits when you explicitly ask, in words or with
+  `--pushed`, with a backup ref and a `--force-with-lease` push, never on a
+  shared branch without confirmation.
 
 It never invents changes and never touches a commit you did not ask it to.
 
@@ -51,10 +52,11 @@ for you:
 
 - Unpushed commits with a bad history: preen absorbs them back into the tree and
   redoes them as clean commits.
-- Already pushed: if you explicitly ask, preen rewrites them and force-pushes with
-  `--force-with-lease`, after showing you exactly what will change. It refuses to
-  rewrite shared branches like `main` unless you confirm the branch is yours
-  alone, and it always saves a backup ref you can reset to.
+- Already pushed: if you explicitly ask, in words or with `--pushed`, preen
+  rewrites them and force-pushes with `--force-with-lease`, after showing you
+  exactly what will change. It refuses to rewrite shared branches like `main`
+  unless you confirm the branch is yours alone, and it always saves a backup
+  ref you can reset to.
 
 Just run it:
 
@@ -120,6 +122,8 @@ The CLI takes the same flags from any terminal:
 ```
 preen --fixup --scope internal/
 preen --headless --gate 'go test ./...'
+preen --spread 2h
+preen --headless --pushed origin/main~4
 ```
 
 Plain runs open a Claude Code session where you approve the plan as usual.
@@ -163,7 +167,11 @@ Run options: `--scope <pathspec>` preens only part of the tree and leaves the
 rest dirty, `--gate <cmd>` runs your check after each commit and stops on
 failure, `--dry-run` shows the plan and stops, `--fixup` folds dirty changes
 into the unpushed commits they belong to, `--yes` skips the approval prompt for
-scripted runs, `--prune-backups` cleans up old backup refs. If your repo has hooks that block automated commits, set
+scripted runs, `--spread <window|auto>` spaces the commit timestamps across a
+window ending now (`spread = "2h"` under `[run]` sets a default), `--pushed
+[<base>]` grants the explicit ask a pushed rewrite requires and optionally
+names the commit just before the range to redo, `--prune-backups` cleans up
+old backup refs. If your repo has hooks that block automated commits, set
 `allow-no-verify = true` under `[run]` to grant standing consent to bypass
 them.
 
