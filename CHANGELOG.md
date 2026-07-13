@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.12.0 - 2026-07-13
+
+- New `--spread <window|auto>` run option spaces commit timestamps across a
+  window ending now instead of stamping them all in the same second, for
+  example `--spread 2h`. `auto` picks a plausible window from the size of the
+  run. `spread = "2h"` under `[run]` in `.preen.toml` sets a default. The
+  behavior existed but could only be requested in words, which made it
+  unreachable in `--headless` runs.
+- New `--pushed [<base>]` run option grants the explicit ask a pushed rewrite
+  requires, so headless runs can rewrite published commits. The optional value
+  names the commit just before the range to redo; without one the base is the
+  merge-base with the default branch on a feature branch. Every other pushed
+  rewrite guardrail still applies, and `.preen.toml` cannot set it: consent is
+  per invocation.
+- Eval cases: c10 asserts spread timestamps strictly increase, never in the
+  future, never before the base or the window. c11 asserts `--pushed` redoes
+  pushed commits on a feature branch and updates the remote with lease.
+
 ## 0.11.1 - 2026-07-12
 
 - Release pipeline: goreleaser builds binaries for macOS, Linux, and Windows
