@@ -19,6 +19,20 @@ FAILED_CASES=()
 
 say() { printf '%s\n' "$*"; }
 
+# content_tree prints the tree hash of HEAD plus every staged, unstaged, and
+# untracked change in the fixture, computed on a scratch index so the real
+# index is untouched. preen only reshapes history, so this fingerprint must be
+# identical before and after a run: one that dropped or invented a change
+# changes the hash.
+content_tree() {
+  local dir="$1" idx
+  idx="$(mktemp -u "${TMPDIR:-/tmp}/preen-idx.XXXXXX")"
+  GIT_INDEX_FILE="$idx" git -C "$dir" read-tree HEAD
+  GIT_INDEX_FILE="$idx" git -C "$dir" add -A
+  GIT_INDEX_FILE="$idx" git -C "$dir" write-tree
+  rm -f "$idx"
+}
+
 # new_fixture makes a fresh repo with one seed commit and the skill installed,
 # and prints its path.
 new_fixture() {
@@ -53,6 +67,7 @@ add_remote() {
 # installed preen plugin would otherwise shadow the version under test.
 run_preen() {
   local dir="$1" prompt="$2"
+  CONTENT_BEFORE="$(content_tree "$dir")"
   local instr="Read the file .claude/skills/preen/SKILL.md in this repository \
 and follow it exactly as the preen skill for this invocation. It overrides any \
 other preen skill, plugin, or prior knowledge of preen. Invocation: $prompt"
@@ -71,6 +86,16 @@ assert() {
     say "  FAIL: $desc"
     CASE_OK=false
   fi
+}
+
+# assert_conserved checks that the run neither lost nor invented a change: the
+# content fingerprint after the run matches the one run_preen captured before
+# it. Holds in every mode, since preen only reshapes history. Cases that
+# deliberately drop or sweep paths would compare against a trimmed baseline;
+# none of the current cases do.
+assert_conserved() {
+  local case_id="$1" dir="$2"
+  assert "$case_id" "content conserved" "[ \"\$(content_tree '$dir')\" = '$CONTENT_BEFORE' ]"
 }
 
 finish_case() {
@@ -100,6 +125,7 @@ c1() {
   assert c1 "made at least 2 commits (got $((count - 1)))" "[ '$count' -ge 3 ]"
   assert c1 "backup ref exists" "git -C '$dir' branch --list 'preen-backup/*' | grep -q ."
   assert c1 "no wip messages" "! git -C '$dir' log --format=%s | grep -qi '^wip'"
+  assert_conserved c1 "$dir"
   finish_case c1 "$dir"
 }
 
@@ -118,6 +144,7 @@ c2() {
   assert c2 "wip subjects are gone" "! git -C '$dir' log --format=%s | grep -qiE '^(wip|more stuff)'"
   assert c2 "seed commit untouched" "git -C '$dir' log --format=%s | grep -q 'Seed fixture'"
   assert c2 "nothing was pushed" "[ \"\$(git -C '$dir' rev-list --count origin/main)\" -eq 1 ]"
+  assert_conserved c2 "$dir"
   finish_case c2 "$dir"
 }
 
@@ -133,6 +160,7 @@ c3() {
     "! git -C '$dir' log --format=%s HEAD~\$(($(git -C "$dir" rev-list --count HEAD) - 1))..HEAD 2>/dev/null | grep -vqE '^[a-z]+(\([^)]+\))?!?: '"
   assert c3 "subjects within 50 chars" \
     "! git -C '$dir' log --format=%s | awk 'length(\$0) > 50' | grep -q ."
+  assert_conserved c3 "$dir"
   finish_case c3 "$dir"
 }
 
@@ -145,6 +173,7 @@ c4() {
   run_preen "$dir" "/preen --dry-run"
   assert c4 "HEAD unmoved" "[ \"\$(git -C '$dir' rev-parse HEAD)\" = '$before' ]"
   assert c4 "file still dirty" "git -C '$dir' status --porcelain | grep -q 'd.go'"
+  assert_conserved c4 "$dir"
   finish_case c4 "$dir"
 }
 
@@ -171,6 +200,7 @@ c5() {
   assert c5 "wip commit was redone" \
     "! git -C '$dir' log --format=%s | grep -qi '^wip'"
   assert c5 "tree is clean" "[ -z \"\$(git -C '$dir' status --porcelain -uall)\" ]"
+  assert_conserved c5 "$dir"
   finish_case c5 "$dir"
 }
 
@@ -184,6 +214,7 @@ c6() {
   run_preen "$dir" "/preen --yes --scope src/"
   assert c6 "in-scope file committed" "! git -C '$dir' status --porcelain -uall | grep -q 'src/a.go'"
   assert c6 "out-of-scope file still dirty" "git -C '$dir' status --porcelain -uall | grep -q 'exp/scratch.txt'"
+  assert_conserved c6 "$dir"
   finish_case c6 "$dir"
 }
 
@@ -209,6 +240,7 @@ c7() {
     "git -C '$dir' show \$(git -C '$dir' log --format=%H --grep='^Add farewell function\$'):farewell.go | grep -q 'goodbye'"
   assert c7 "backup ref exists" "git -C '$dir' branch --list 'preen-backup/*' | grep -q ."
   assert c7 "nothing was pushed" "[ \"\$(git -C '$dir' rev-list --count origin/main)\" -eq 1 ]"
+  assert_conserved c7 "$dir"
   finish_case c7 "$dir"
 }
 
@@ -233,6 +265,7 @@ c8() {
   assert c8 "tree is clean" "[ -z \"\$(git -C '$dir' status --porcelain -uall)\" ]"
   assert c8 "commits were made past the hook" \
     "[ \"\$(git -C '$dir' rev-list --count HEAD)\" -ge 3 ]"
+  assert_conserved c8 "$dir"
   finish_case c8 "$dir"
 }
 
@@ -246,6 +279,7 @@ c9() {
   run_preen "$dir" "/preen --yes"
   assert c9 "no commit got past the hook" "[ \"\$(git -C '$dir' rev-parse HEAD)\" = '$before' ]"
   assert c9 "work is still in the tree" "git -C '$dir' status --porcelain -uall | grep -q 'inc.go'"
+  assert_conserved c9 "$dir"
   finish_case c9 "$dir"
 }
 

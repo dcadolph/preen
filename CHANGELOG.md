@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0 - 2026-07-12
+
+- Content-conservation check: preen records the full content tree before it
+  touches anything and verifies at the end that committed plus
+  still-uncommitted content is unchanged, so a run that lost or invented a
+  change is caught instead of trusted. The only allowed differences are paths
+  a sweep or `drop` removed or a commit hook reformatted.
+- Eval harness asserts conservation on every case: the content tree (HEAD plus
+  all uncommitted changes) is identical before and after the run.
+
 ## 0.9.0 - 2026-07-11
 
 - Go CLI wrapper: `go install github.com/dcadolph/preen@latest` gives a
