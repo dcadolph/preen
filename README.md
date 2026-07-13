@@ -144,8 +144,9 @@ branches = ["develop"]
 ```
 
 Options: `--no-emdash`, `--no-semicolon`, `--no-hyphen`, `--max-subject N`,
-`--no-period`, `--lower-subject`, `--conventional`, `--body always|auto|never`,
-`--include-files`, `--include-line-numbers`, `--prefix TEXT`, `--sign-off`.
+`--punctuation always|auto|never`, `--lower-subject`, `--conventional`,
+`--body always|auto|never`, `--include-files`, `--include-line-numbers`,
+`--prefix TEXT`, `--sign-off`.
 Invocation options beat the config file, which beats the defaults.
 
 Run options: `--scope <pathspec>` preens only part of the tree and leaves the

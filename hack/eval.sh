@@ -148,18 +148,21 @@ c2() {
   finish_case c2 "$dir"
 }
 
-# c3: style flags hold: conventional subjects capped at 50 characters.
+# c3: style flags hold: conventional subjects capped at 50 characters, each
+# ending with a period per --punctuation always.
 c3() {
-  say "c3: style flags (--conventional --max-subject 50)"
+  say "c3: style flags (--conventional --max-subject 50 --punctuation always)"
   local dir; dir="$(new_fixture)"; CASE_OK=true
   printf 'package c\n\nfunc Neg(x int) int { return -x }\n' > "$dir/neg.go"
   printf 'Notes on negation.\n' > "$dir/NOTES.md"
-  run_preen "$dir" "/preen --yes --conventional --max-subject 50"
+  run_preen "$dir" "/preen --yes --conventional --max-subject 50 --punctuation always"
   assert c3 "tree is clean" "[ -z \"\$(git -C '$dir' status --porcelain)\" ]"
   assert c3 "subjects are conventional" \
     "! git -C '$dir' log --format=%s HEAD~\$(($(git -C "$dir" rev-list --count HEAD) - 1))..HEAD 2>/dev/null | grep -vqE '^[a-z]+(\([^)]+\))?!?: '"
   assert c3 "subjects within 50 chars" \
     "! git -C '$dir' log --format=%s | awk 'length(\$0) > 50' | grep -q ."
+  assert c3 "subjects end with a period" \
+    "! git -C '$dir' log --format=%s HEAD~\$(($(git -C "$dir" rev-list --count HEAD) - 1))..HEAD 2>/dev/null | grep -vq '\.$'"
   assert_conserved c3 "$dir"
   finish_case c3 "$dir"
 }
