@@ -57,6 +57,10 @@ These hold on every run and evals assert them where practical:
   `--force-with-lease`.
 - No `--no-verify` without standing consent (`allow-no-verify` in
   `.preen.toml`) or an explicit in-session grant.
+- Content is conserved. The tree of HEAD plus any still-uncommitted changes
+  after a run equals the same tree captured before it (`git write-tree` on a
+  scratch index), except for paths a sweep or `drop` removed or a hook
+  reformatted. Checked in step 11 and asserted by the evals.
 - preen never invents changes.
 
 ## Evals
@@ -65,8 +69,11 @@ These hold on every run and evals assert them where practical:
 skill headless (`claude -p "/preen --yes ..."`), and asserts on the resulting
 git state. Cases: c1 basic split, c2 absorb, c3 style flags, c4 dry-run,
 c5 foreign merge guard, c6 scope, c7 fixup targeting, c8 allow-no-verify
-consent, c9 hook rejection without consent. Quick set is c1/c3/c4; `--all`
-runs everything. Each case is a real agent run and costs tokens, so it is
+consent, c9 hook rejection without consent. Every case also asserts content
+conservation: the content tree (HEAD plus all uncommitted changes, via
+`git write-tree` on a scratch index) is identical before and after the run,
+so a run that dropped or invented a change fails deterministically without an
+agent judging the diff. Quick set is c1/c3/c4; `--all` runs everything. Each case is a real agent run and costs tokens, so it is
 run by hand, not in CI. Failed fixtures are kept on disk with their
 stream-json agent traces for inspection; passing cases clean up both.
 
@@ -97,21 +104,29 @@ and declares it overriding. Results recorded before that pinning
 
 ## Releases
 
-Bump `version` in `.claude-plugin/plugin.json`, add a `CHANGELOG.md` entry,
-tag `vX.Y.Z`. Versions to date: 0.5.0 hardening and run options, 0.6.0 fixup
-mode plus evals, 0.7.0 plan edit grammar, backup pruning, and the
-foreign-versus-local merge rule.
+Bump `version` in `.claude-plugin/plugin.json` and `cmd.Version`, add a
+`CHANGELOG.md` entry, tag `vX.Y.Z`. Versions to date: 0.5.0 hardening and run
+options, 0.6.0 fixup mode plus evals, 0.7.0 plan edit grammar, backup pruning,
+and the foreign-versus-local merge rule, 0.8.0 fixup and hook eval cases under
+the pinned harness, 0.9.0 the Go CLI wrapper, 0.10.0 the content-conservation
+invariant.
 
 ## Backlog
 
 Ordered by value:
 
-1. Publish the announcement post. A draft lives in the dcadolph.dev repo at
+1. Adversarial hunk-split eval: one file's interleaved hunks split across
+   several commits, the hardest move, with a specified fallback ladder for
+   when `git apply --cached` will not apply a selected subset.
+2. Pass-rate evals: run each case N times and report flakiness. One agent run
+   per case samples a pass, not a pass rate.
+3. Publish the announcement post. A draft lives in the dcadolph.dev repo at
    `content/posts/preen-absorbs-your-bad-commits.md` with `draft: true`.
 
-Done since 0.7.0: fixup eval case (c7), hook-interaction cases (c8, c9),
-fixup demo scenario with the gif regenerated, and a full `--all` pass (9 of
-9) under the pinned harness on 2026-07-11.
+Done since 0.9.0: the content-conservation invariant, checked in step 11 and
+asserted by every eval case. Earlier: the Go CLI wrapper (0.9.0); fixup and
+hook eval cases c7, c8, c9 and the pinned harness (0.8.0); a full `--all` pass
+(9 of 9) under the pinned harness on 2026-07-11.
 
 ## External artifacts
 

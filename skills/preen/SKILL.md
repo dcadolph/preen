@@ -131,6 +131,19 @@ that are already pushed. Skip when the tree is clean and there is nothing to red
   unmerged paths in `git status --porcelain=v1` (states like `UU`). Report the
   state and touch nothing.
 - Record the current branch and the undo anchor: `git rev-parse HEAD`.
+- Record the content baseline for the conservation check in step 11. On a
+  scratch index, stage every change and write its tree:
+
+  ```
+  idx="$(mktemp -u)"
+  GIT_INDEX_FILE="$idx" git read-tree HEAD
+  GIT_INDEX_FILE="$idx" git add -A
+  TREE_START="$(GIT_INDEX_FILE="$idx" git write-tree)"
+  rm -f "$idx"
+  ```
+
+  `TREE_START` is the hash of HEAD plus every staged, unstaged, and untracked
+  change. The scratch index leaves the real index untouched. Keep the hash.
 - Record what is already staged versus unstaged. Pre-staged files are a signal:
   the user may have marked a commit boundary by hand. Use it as a grouping
   hint.
@@ -317,6 +330,16 @@ enabled, note that signature timestamps will not match back-dated commits.
 
 ### 11. Verify and report
 
+- Content conservation, required. Recompute the content tree exactly as the
+  step 0 baseline did (`git read-tree HEAD`, `git add -A`, `git write-tree` on
+  a scratch index) to get `TREE_END`, and confirm it equals `TREE_START`.
+  preen only reshapes history, so committed plus still-uncommitted content is
+  conserved and the two trees MUST match. The only allowed differences are
+  paths a sweep or a `drop` deliberately removed, and files a commit hook
+  reformatted; then `git diff TREE_START TREE_END` must touch exactly those
+  paths and nothing else. Any other difference means a change was lost or
+  invented: stop and restore from the backup ref with `git reset --keep
+  preen-backup/<ts>`, then report what diverged.
 - With a gate configured it already ran per commit; otherwise offer a final
   build or test run.
 - Finish with `git log --oneline -n <count>`.
