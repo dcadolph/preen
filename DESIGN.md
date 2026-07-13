@@ -132,9 +132,10 @@ Ordered by value:
    `content/posts/preen-absorbs-your-bad-commits.md` with `draft: true`.
 
 Done since 0.9.0: the content-conservation invariant, checked in step 11 and
-asserted by every eval case. Earlier: the Go CLI wrapper (0.9.0); fixup and
-hook eval cases c7, c8, c9 and the pinned harness (0.8.0); a full `--all` pass
-(9 of 9) under the pinned harness on 2026-07-11.
+asserted by every eval case; the `--spread` and `--pushed` run options with
+eval cases c10 and c11, both passing on 2026-07-13. Earlier: the Go CLI
+wrapper (0.9.0); fixup and hook eval cases c7, c8, c9 and the pinned harness
+(0.8.0); a full `--all` pass (9 of 9) under the pinned harness on 2026-07-11.
 
 ## External artifacts
 
