@@ -201,6 +201,13 @@ the resulting git state: clean tree, commit counts, style conformance, merge
 and scope guards. It needs the claude CLI and spends real tokens; `hack/eval.sh`
 for the quick set, `--all` for everything.
 
+## More tools
+
+- [kibble](https://github.com/dcadolph/kibble), test your README's install steps in a clean container
+- [slop-chop](https://github.com/dcadolph/slop-chop), strip the AI tells out of your writing
+- [vamoose](https://github.com/dcadolph/vamoose), route time off through approval, then tell the team
+- [whodar](https://github.com/dcadolph/whodar), find who to talk to about X across your work tools
+
 ## License
 
 MIT.
