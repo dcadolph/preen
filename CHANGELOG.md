@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.0.0 - 2026-08-18
+
+preen is now a real program rather than a wrapper around a coding agent.
+
+- The engine is Go. Surveying, grouping, staging, committing, rebasing, and
+  every guardrail run in process, with no model, no API key, and no network.
+  `git` on the `PATH` is the only requirement.
+- Content conservation is enforced, not promised. A run hashes a tree holding
+  HEAD plus every staged, unstaged, and untracked change before it starts and
+  again when it finishes, and rolls itself back if a single byte differs.
+- A plan must account for every change exactly once before the repository is
+  touched, and an edit at the approval prompt that would break that is refused.
+- The merge audit is a function rather than an instruction, so it cannot be
+  skipped, and it moves the base past any merge whose side branch is published.
+- New `preen restore` undoes a run and returns the work to the working tree as
+  it was. New `preen backups` lists and prunes recovery refs.
+- Grouping sits behind an interface. The built-in grouper is deterministic and
+  never splits a file; `--grouper PROG` hands the judgment to any program that
+  speaks the JSON contract, including one that splits a file by hunk, and every
+  answer is verified against the real tree before it is acted on.
+- `--sweep` reports debug prints, scratch markers, commented-out code, and
+  skipped tests, and never removes any of them.
+- Fixed: undo used `git reset --keep`, which deletes from disk every file the
+  undone commits added. It is a mixed reset now, and has a regression test.
+
 ## 0.12.0 - 2026-07-13
 
 - New `--spread <window|auto>` run option spaces commit timestamps across a

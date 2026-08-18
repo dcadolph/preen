@@ -1,6 +1,6 @@
 {
   "name": "preen",
-  "version": "0.12.0",
+  "version": "1.0.0",
   "description": "Turn a messy working tree or bad commits into clean, ordered, atomic commits.",
   "author": {
     "name": "dcadolph",
