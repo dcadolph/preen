@@ -6,140 +6,93 @@ change.
 
 ## Shape
 
-preen is a Claude Code plugin. The product is `skills/preen/SKILL.md`: a
-prompt program the agent executes with git. Options are conventions the
-agent follows and verifies, not parsed flags, and quality is enforced by
-instruction plus evals, not by a type system.
+preen is a Go program. It runs in process with no model, no API key, and no
+network; `git` on the `PATH` is the only requirement.
 
-A thin Go CLI (`main.go`, `cmd/`) wraps the claude CLI so the skill runs
-from any terminal. It embeds the release's SKILL.md at build time, writes it
-to a temp file, and tells claude to follow that exact text, the same pinning
-the eval harness uses, so an installed plugin or stale skill copy cannot
-shadow it. The wrapper parses only its own flags (`--headless`,
-`--claude-bin`, `--version`, `--help`, `--` for claude passthrough);
-everything else is forwarded into the `/preen` invocation untouched. It is
-not a reimplementation: grouping and messages stay in the skill.
+The packages divide along one line: mechanics and judgment.
 
-Packaging is `.claude-plugin/plugin.json` (version lives here, kept in step
-with `cmd.Version`) and `marketplace.json`. Install is via the plugin
-marketplace, copying the skill directory, or
-`go install github.com/dcadolph/preen@latest` for the CLI.
+| Package  | Holds |
+| -------- | ----- |
+| `repo`   | A typed layer over git, behind a one-method `Runner` interface. |
+| `plan`   | The intent of a run as data: renderable, editable, validatable. |
+| `group`  | The one judgment call, behind a `Grouper` interface. |
+| `style`  | Commit message conventions, applied and verified. |
+| `sweep`  | Debris detection. Reports only, never removes. |
+| `config` | `.preen.toml`, the per-repository defaults. |
+| `run`    | Orchestration and every guardrail. |
+| `cmd`    | Argument parsing and rendering, a thin shell over the rest. |
+
+Real git is shelled out to rather than reimplemented. preen rewrites history,
+so matching git's own index, patch application, and rebase behavior exactly
+matters more than avoiding a process boundary.
 
 ## What it does
 
-Three rewrite modes plus one distribution mode:
-
-- Working tree: group uncommitted changes into atomic commits.
-- Absorb: soft-reset a run of unpushed commits back into the tree and redo
-  them clean.
-- Pushed rewrite: opt-in only (in words or `--pushed`), force-with-lease
-  only, guarded.
-- Fixup: fold dirty changes into the unpushed commits that introduced them,
-  autosquash under the hood.
-
-Message style and run behavior are configurable per invocation or via
-`.preen.toml` (`[commit]`, `[run]`, `[protect]`).
+- Surveys every uncommitted change, including untracked files, and optionally
+  absorbs unpushed commits back into the tree to be redone.
+- Groups the changes into atomic commits, ordered so dependencies land first.
+- Shows a plan and changes nothing until it is approved. The prompt accepts
+  merge, split, move, reword, drop, and reorder.
+- Stages each group precisely, including a subset of one file's hunks, commits,
+  and optionally runs a gate after each commit.
+- Folds changes into the commits that introduced them with `--fixup`.
+- Rewrites published history only behind two consents, then pushes behind a
+  third, always with `--force-with-lease`.
+- Undoes any run with `preen restore`.
 
 ## Invariants
 
-These hold on every run and evals assert them where practical:
+These are enforced in code. Each has a regression test, and the tests run
+against real repositories rather than a mock.
 
-- A backup ref (`preen-backup/<ts>`) exists before any history changes.
-- A plan is shown before anything moves. `--yes` skips the approval prompt,
-  not the plan.
-- Merges whose second parent is remote-reachable (`git branch -r --contains
-  <sha>^2` non-empty, e.g. pull merges or merges of pushed branches) are
-  never flattened; the base re-anchors past them and the check's output
-  appears in the plan. Fully unpushed merges may be linearized with notice.
-- Mid-rebase, mid-merge, or conflicted repositories refuse cleanly.
-- Diffs are regenerated after every commit; patches are never reused across
-  commits.
-- Plain splits and absorbs never push. Only pushed rewrites push, only with
-  `--force-with-lease`.
-- No `--no-verify` without standing consent (`allow-no-verify` in
-  `.preen.toml`) or an explicit in-session grant.
-- Content is conserved. The tree of HEAD plus any still-uncommitted changes
-  after a run equals the same tree captured before it (`git write-tree` on a
-  scratch index), except for paths a sweep or `drop` removed or a hook
-  reformatted. Checked in step 11 and asserted by the evals.
-- preen never invents changes.
+1. **Content is conserved.** A run hashes a tree of HEAD plus every staged,
+   unstaged, and untracked change before and after itself. Any difference rolls
+   the run back to the recovery ref. The only accepted exception is a commit
+   hook reformatting files the run committed, and only when the caller passed
+   `--allow-hook-rewrites`, which is then reported.
+2. **A plan accounts for the tree exactly once.** Every change lands in a
+   commit or a declared leftover, nothing lands twice, no commit is empty. An
+   edit that breaks this is refused and the previous plan stands.
+3. **Published work is not redone by accident.** A merge whose second parent is
+   reachable from any remote moves the base forward instead of being flattened,
+   and redoing a pushed commit requires `--pushed`.
+4. **A protected branch is not rewritten.** The built-in names plus anything in
+   `[protect]`, overridable only by `--allow-protected`. Protection comes from
+   the repository, never from a flag.
+5. **A hunk is identified by content, not position.** Committing one hunk
+   renumbers the rest, so a planned hunk is found again by its body.
+6. **Undo restores the mess.** `preen restore` is a mixed reset: HEAD and the
+   index move, the working tree does not. `--hard` and `--keep` both delete
+   files the undone commits added, which is a data-loss bug, not a preference.
+7. **Nothing is deleted on a guess.** The sweep reports debris and never
+   removes it.
 
-## Evals
+## Tests
 
-`hack/eval.sh` is the regression suite: it builds fixture repos, runs the
-skill headless (`claude -p "/preen --yes ..."`), and asserts on the resulting
-git state. Cases: c1 basic split, c2 absorb, c3 style flags, c4 dry-run,
-c5 foreign merge guard, c6 scope, c7 fixup targeting, c8 allow-no-verify
-consent, c9 hook rejection without consent, c10 spread timestamps (strictly
-increasing, never future, never before the base or the window), c11 pushed
-rewrite via `--pushed` (redone on a feature branch, remote updated with
-lease). Every case also asserts content
-conservation: the content tree (HEAD plus all uncommitted changes, via
-`git write-tree` on a scratch index) is identical before and after the run,
-so a run that dropped or invented a change fails deterministically without an
-agent judging the diff. Quick set is c1/c3/c4; `--all` runs everything. Each case is a real agent run and costs tokens, so it is
-run by hand, not in CI. Failed fixtures are kept on disk with their
-stream-json agent traces for inspection; passing cases clean up both.
+`go test ./...` is the whole suite. It builds real repositories in temp
+directories, with real remotes where publishing matters and real hooks where
+hook behavior matters. There is no agent in the loop and no token spend.
 
-Lessons already banked from the merge guard, which took four rule revisions:
-an unconditional "never flatten" got overridden because flattening local
-merges is what a history cleaner should do; a prose classification
-(foreign versus local, with a "local topic branch" example) got
-pattern-matched by branch name instead of checked; a mechanical procedure
-(run named commands, decide on their output alone) got skipped outright while
-it lived as a procedural paragraph, with the agent substituting a
-pushed-ness check on HEAD; what held was binding the evidence to the plan
-format: the plan must carry a `Merge check:` line quoting the command
-output, so a run that skipped the commands produces a visibly invalid plan.
-When an eval keeps failing, first ask whether the spec is wrong, then make
-the rule command-driven, and then make its evidence a required field of the
-output rather than a step the agent may drift past. Debugging this required
-full agent traces, so the harness logs stream-json, not just the final
-message.
-
-The harness lesson that came out of the hook-consent case: pin the skill
-under test. `/preen` in a fixture resolved against whatever preen the
-machine had, and a stale user-level copy under `~/.claude/skills` shadowed
-the fixture's file, so some failures were failures of a version that no
-longer existed and at least one rule revision reacted to a trace the revised
-text never produced. The eval prompt now names the fixture's own SKILL.md
-and declares it overriding. Results recorded before that pinning
-(c5, c7, c9 passes) count only once reproduced under it.
+The eval harness that drove the old skill through the claude CLI is gone with
+the architecture it tested.
 
 ## Releases
 
-Bump `version` in `.claude-plugin/plugin.json` and `cmd.Version`, add a
-`CHANGELOG.md` entry, tag `vX.Y.Z`. The tag triggers goreleaser: binaries for
-macOS, Linux, and Windows on the GitHub release and a Homebrew cask pushed to
-`dcadolph/homebrew-tap`. Versions to date: 0.5.0 hardening and run options,
-0.6.0 fixup mode plus evals, 0.7.0 plan edit grammar, backup pruning, and the
-foreign-versus-local merge rule, 0.8.0 fixup and hook eval cases under the
-pinned harness, 0.9.0 the Go CLI wrapper, 0.10.0 the content-conservation
-invariant, 0.11.0 the `--punctuation` style option, 0.11.1 the goreleaser
-release pipeline, 0.12.0 the `--spread` and `--pushed` run options with eval
-cases c10 and c11.
+Tag `vX.Y.Z`; the release workflow cross-builds and attaches archives. Keep
+`cmd/version.go` and `.claude-plugin/plugin.json` in step.
 
 ## Backlog
 
-Ordered by value:
-
-1. Adversarial hunk-split eval: one file's interleaved hunks split across
-   several commits, the hardest move, with a specified fallback ladder for
-   when `git apply --cached` will not apply a selected subset.
-2. Pass-rate evals: run each case N times and report flakiness. One agent run
-   per case samples a pass, not a pass rate.
-3. Publish the announcement post. A draft lives in the dcadolph.dev repo at
-   `content/posts/preen-absorbs-your-bad-commits.md` with `draft: true`.
-
-Done since 0.9.0: the content-conservation invariant, checked in step 11 and
-asserted by every eval case; the `--spread` and `--pushed` run options with
-eval cases c10 and c11, both passing on 2026-07-13. Earlier: the Go CLI
-wrapper (0.9.0); fixup and hook eval cases c7, c8, c9 and the pinned harness
-(0.8.0); a full `--all` pass (9 of 9) under the pinned harness on 2026-07-11.
+- Punctuation `auto` reads the repository's recent subjects, but the body mode
+  has no equivalent inference.
+- The rebase-conflict path aborts and rolls back; it has no test, because
+  producing a reliable conflict in a fixture is fiddly.
+- Fixup targeting is per file. Per hunk would need blame attribution and a
+  wrong answer rewrites the wrong commit, so it stays coarse deliberately.
+- The grouper contract is JSON over stdin and stdout. No reference grouper
+  ships with preen.
 
 ## External artifacts
 
-The announcement post draft is in the dcadolph.dev repository, not here. The
-plugin is listed on the personal site's projects page. There is no CI, no
-external service, and nothing leaves the machine except the agent's normal
-API traffic.
+The demo fixtures under `hack/` build throwaway repositories for recording the
+README demo. They do not test anything.
