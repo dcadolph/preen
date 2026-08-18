@@ -362,7 +362,7 @@ signature timestamps will not match back-dated commits.
   paths a sweep or a `drop` deliberately removed, and files a commit hook
   reformatted; then `git diff TREE_START TREE_END` must touch exactly those
   paths and nothing else. Any other difference means a change was lost or
-  invented: stop and restore from the backup ref with `git reset --keep
+  invented: stop and restore from the backup ref with `git reset --mixed
   preen-backup/<ts>`, then report what diverged.
 - With a gate configured it already ran per commit; otherwise offer a final
   build or test run.
@@ -400,9 +400,12 @@ cleanup.
 
 ## Safety
 
-- Everything is reversible. Undo any run with the backup ref: `git reset --keep
-  preen-backup/<ts>`, or via the reflog. Prefer `--keep` over `--hard`: `--hard`
-  also destroys anything the user did after the run.
+- Everything is reversible. Undo any run with `preen restore`, or by hand with
+  `git reset --mixed preen-backup/<ts>`. The reset must be mixed. A run only
+  reshapes history, so undo has to move HEAD and the index while leaving the
+  working tree alone, which puts the content back in its original messy state.
+  Neither `--hard` nor `--keep` is safe here: both update tracked files to the
+  target commit, which deletes from disk every file the undone commits added.
 - No `--no-verify` without standing consent (`allow-no-verify = true` in
   `.preen.toml`) or an explicit in-session grant. With that consent in place,
   use it rather than aborting the run: the setting exists so hook-blocked
