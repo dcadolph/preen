@@ -2,14 +2,13 @@ package cmd
 
 import "errors"
 
-// Sentinel errors for preflight failures. Execute maps them to exit codes.
+// Sentinel errors for the command line surface.
 var (
-	// ErrNoClaude reports that the claude binary could not be resolved.
-	ErrNoClaude = errors.New("claude cli not found")
-	// ErrNoRepo reports that the working directory is not in a git repository.
-	ErrNoRepo = errors.New("not inside a git repository")
-	// ErrRepoState reports a repository mid-rebase, mid-merge, or mid-cherry-pick.
-	ErrRepoState = errors.New("repository has an operation in progress")
-	// ErrUsage reports invalid wrapper arguments.
+	// ErrUsage reports invalid arguments.
 	ErrUsage = errors.New("invalid arguments")
+	// ErrAborted reports that the user declined the plan, which is a normal
+	// outcome rather than a failure worth a message.
+	ErrAborted = errors.New("aborted")
+	// ErrNoBackups reports that no recovery ref exists to restore from.
+	ErrNoBackups = errors.New("no preen backups in this repository")
 )

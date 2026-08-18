@@ -5,4 +5,4 @@ package cmd
 // -ldflags "-X github.com/dcadolph/preen/cmd.Version=<v>".
 //
 //nolint:gochecknoglobals // Build-time override target.
-var Version = "0.12.0"
+var Version = "1.0.0"
