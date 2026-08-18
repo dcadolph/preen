@@ -2,7 +2,6 @@
 
 # preen
 
-[![Release](https://img.shields.io/github/v/release/dcadolph/preen)](https://github.com/dcadolph/preen/releases)
 [![License](https://img.shields.io/github/license/dcadolph/preen)](LICENSE)
 
 Clean up your commit history, automatically.
@@ -23,183 +22,222 @@ Clean history is worth having on its own. It makes review readable, `git bisect`
 useful, and `git blame` honest. preen gets you there without the tedious
 hand-staging.
 
-## What it does
+## It cannot lose your work
 
-- Surveys every uncommitted change: staged, unstaged, and untracked.
-- Absorbs a run of unpushed commits back into the tree and redoes them clean, no
-  manual reset.
-- Folds dirty changes into the unpushed commits that introduced them with
-  `--fixup`, like git absorb with judgment.
-- Groups everything into atomic commits, one coherent idea each.
-- Writes a clear message for each, matching your repository's style.
-- Orders them so dependencies land first and the history could be bisected.
-- Shows the plan and acts only after you approve. Nothing moves before that.
-- Optionally runs your build or test gate after each commit, so the history
-  actually bisects.
-- Optionally sweeps stray debug prints and dead code it spots in the diff.
-- Optionally spaces the commit timestamps across a plausible window instead of
-  stamping them all in the same second: `--spread 2h`, or `--spread auto`.
-- Rewrites already-pushed commits when you explicitly ask, in words or with
-  `--pushed`, with a backup ref and a `--force-with-lease` push, never on a
-  shared branch without confirmation.
+preen only reshapes history, never content, and it enforces that rather than
+promising it.
 
-It never invents changes and never touches a commit you did not ask it to.
+Before a run it hashes a tree holding your `HEAD` plus every staged, unstaged,
+and untracked change. After the run it hashes the same thing again. The two must
+match exactly. If a single byte differs, the run rolls itself back to the
+recovery branch it made before it started and tells you which paths diverged.
 
-## Already committed the mess?
-
-No unstaging, no rewinding, nothing by hand. Point preen at it and it does the reset
-for you:
-
-- Unpushed commits with a bad history: preen absorbs them back into the tree and
-  redoes them as clean commits.
-- Already pushed: if you explicitly ask, in words or with `--pushed`, preen
-  rewrites them and force-pushes with `--force-with-lease`, after showing you
-  exactly what will change. It refuses to rewrite shared branches like `main`
-  unless you confirm the branch is yours alone, and it always saves a backup
-  ref you can reset to.
-
-Just run it:
-
-```
-/preen
-```
+Every run leaves a `preen-backup/<timestamp>` branch, and `preen restore` puts
+you back where you were, with your work returned to the working tree exactly as
+it was.
 
 ## Install
-
-As a plugin:
-
-```
-/plugin marketplace add dcadolph/preen
-/plugin install preen@preen
-```
-
-Or drop the skill in place manually:
-
-```
-cp -r skills/preen ~/.claude/skills/preen
-```
-
-Or install the CLI, which needs no plugin or skill install at all. It embeds
-this release's skill text and launches Claude Code with it:
-
-```
-brew install --cask dcadolph/tap/preen
-```
 
 ```
 go install github.com/dcadolph/preen@latest
 ```
 
-Prebuilt binaries for macOS, Linux, and Windows are attached to each
-[release](https://github.com/dcadolph/preen/releases).
+preen is a single binary. It needs `git` on your `PATH` and nothing else: no
+model, no API key, no network.
 
 ## Use
 
 Run it against a dirty working tree:
 
 ```
-/preen
+preen
 ```
 
 You get a plan like this:
 
 ```
-Planned 4 commits:
-  1. Add config loader          internal/config/loader.go
-  2. Wire --output-dir flag     cmd/flag_output.go
-  3. Test config loader         internal/config/loader_test.go
-  4. Note new flag in README    README.md
-Spread over ~2h ending now. Approve? (y / edit / n)
+Planned commits (4):
+
+1. Update dependencies
+     go.mod
+
+2. Add api
+     api/server.go
+     api/server_test.go
+
+3. Add store
+     store/db.go
+
+4. Add guide.md
+     docs/guide.md
+
+Apply this plan? 4 commits [y/n, or ? for edits]:
 ```
 
-Approve and it stages each group precisely, commits with clean messages, and
-prints the resulting log. Or edit the plan first: `merge 2 into 1`, `split 4`,
-`move README.md to 3`, `reword 2: Add loader tests`, `drop scratch.txt`,
-`reorder 2,1,3`.
-
-The CLI takes the same flags from any terminal:
+Approve and it stages each group precisely, commits, verifies your content is
+unchanged, and tells you how to undo it. Or edit the plan first, one move at a
+time, with the full plan reshown after each:
 
 ```
-preen --fixup --scope internal/
-preen --headless --gate 'go test ./...'
-preen --spread 2h
-preen --headless --pushed origin/main~4
+merge 2 into 1        fold one commit into another
+split 3               break a commit into one per file
+move api/x.go to 2    reassign a file
+reword 1 Add parser   replace a subject
+drop scratch.txt      leave a file uncommitted
+reorder 3,1,2         resequence
 ```
 
-Plain runs open a Claude Code session where you approve the plan as usual.
-`--headless` runs `claude -p` with `--yes` for CI and scripts. Flags after
-`--` go to the claude CLI itself. The binary carries its own copy of the
-skill, pinned at build time, so it behaves the same on every machine and
-overrides any installed preen plugin for that run.
+An edit that would stop the plan covering your tree is rejected, so the prompt
+cannot walk you into losing a change.
+
+## What it does
+
+- Surveys every uncommitted change: staged, unstaged, and untracked.
+- Groups them into atomic commits, one coherent idea each, ordered so
+  dependencies land first and the history could be bisected.
+- Absorbs a run of unpushed commits back into the tree and redoes them clean
+  with `--absorb`, no manual reset.
+- Folds dirty changes into the unpushed commits that introduced them with
+  `--fixup`, then squashes them away with an autosquash rebase.
+- Refuses to redo a commit a remote already has, and moves its base forward past
+  any merge whose side branch is published.
+- Rewrites published history only when you ask twice, with `--pushed` and, on a
+  shared branch, `--allow-protected`, then pushes with `--force-with-lease`
+  behind a separate confirmation.
+- Runs your build or test gate after each commit with `--gate`, rolling the whole
+  run back on failure.
+- Preens only part of the tree with `--scope`, leaving the rest dirty.
+- Spaces commit timestamps across a window with `--spread 2h`, or `--spread auto`
+  to size the window from the run, instead of stamping them all in the same second.
+- Reports debug prints, scratch markers, commented-out code, and skipped tests
+  with `--sweep`, and never removes any of them.
+- Undoes any run with `preen restore`, and cleans up old recovery refs with
+  `preen backups --prune`.
+
+It never invents changes and never touches a commit you did not ask it to.
+
+## How grouping works
+
+The grouping is deterministic and needs no model. preen separates dependency
+manifests, CI configuration, documentation, and configuration from source, then
+groups source by package, keeps a test file with the code it exercises, keeps
+rename pairs together, and treats anything you staged by hand as a boundary you
+drew deliberately. Dependencies are recorded first and documentation last.
+
+Because a fixed rule cannot know whether two hunks in one file are one idea or
+two, the built-in grouper never splits a file.
+
+When you want that judgment, hand grouping to a program:
+
+```
+preen --grouper ./my-grouper
+```
+
+The program reads a JSON request on stdin holding every changed file and its
+hunks, and writes back the commits it proposes. It can split one file's hunks
+across separate commits. The contract is provider agnostic, so any model CLI,
+script, or service wrapper can be a grouper, and none of them can touch your
+repository: a grouper only answers, and preen verifies every path and hunk index
+against the real tree before acting. If it fails, returns nothing, or names
+something that is not there, the run falls back to the built-in rules rather
+than trusting it.
+
+Every guardrail is the same either way. The grouper chooses *what goes where*
+and nothing else.
 
 ## Message style
 
-preen writes a short imperative subject by default and matches your repo's
-convention. Dictate the format with options on the invocation:
+preen writes a short imperative subject by default. Dictate the format with
+flags:
 
 ```
-/preen --no-emdash --no-semicolon --max-subject 50 --include-line-numbers
+preen --conventional --prefix ABC-123 --max-subject 50 --no-emdash
 ```
 
-Or set defaults once in a `.preen.toml` at the repo root:
+`--punctuation auto` reads your repository's own recent subjects and follows
+whatever they do. `--body`, `--include-files`, and `--include-line-numbers`
+control the message body, with line ranges read from the real hunk headers.
 
-```
+Or set defaults once in a `.preen.toml` at the repository root:
+
+```toml
 [commit]
 no-emdash = true
 no-semicolon = true
 max-subject = 50
+punctuation = "never"
+conventional = true
 prefix = "ABC-123"
+body = "auto"
+include-files = false
 
 [run]
 gate = "go test ./..."
+spread = "2h"
+sweep = true
+allow-no-verify = false
 
 [protect]
-branches = ["develop"]
+branches = ["develop", "release/*"]
 ```
 
-Options: `--no-emdash`, `--no-semicolon`, `--no-hyphen`, `--max-subject N`,
-`--punctuation always|auto|never`, `--lower-subject`, `--conventional`,
-`--body always|auto|never`, `--include-files`, `--include-line-numbers`,
-`--prefix TEXT`, `--sign-off`.
-Invocation options beat the config file, which beats the defaults.
+Flags beat the config file, which beats the defaults. Every generated message is
+checked against the style before it is recorded, so a configured convention is
+enforced rather than merely requested.
 
-Run options: `--scope <pathspec>` preens only part of the tree and leaves the
-rest dirty, `--gate <cmd>` runs your check after each commit and stops on
-failure, `--dry-run` shows the plan and stops, `--fixup` folds dirty changes
-into the unpushed commits they belong to, `--yes` skips the approval prompt for
-scripted runs, `--spread <window|auto>` spaces the commit timestamps across a
-window ending now (`spread = "2h"` under `[run]` sets a default), `--pushed
-[<base>]` grants the explicit ask a pushed rewrite requires and optionally
-names the commit just before the range to redo, `--prune-backups` cleans up
-old backup refs. If your repo has hooks that block automated commits, set
-`allow-no-verify = true` under `[run]` to grant standing consent to bypass
-them.
+If your repository has hooks that block automated commits, set
+`allow-no-verify = true` under `[run]` to grant standing consent ahead of time.
+preen never bypasses a hook on its own judgment.
 
-## Limitations
+## Rewriting published history
 
-Honesty about what this is: preen is a skill, not a compiled program. The
-options are conventions the agent follows and then verifies against its own
-output, not a parser; the eval suite checks they hold, but they are enforced by
-instruction, not code. Splitting one file's hunks across several commits is the
-hardest move and can degrade to whole-file grouping on gnarly diffs. Very large
-diffs cost real tokens to survey. Every run creates a backup ref first, so the
-worst case is always one reset away.
+preen will redo commits a remote already has, but only when you say so twice.
+`--pushed` grants the ask, and on a branch that is shared by name you also need
+`--allow-protected`. `main`, `master`, `trunk`, `develop`, `release`, and
+`production` are protected out of the box, plus anything listed under
+`[protect]` in the config, which comes from the repository and can never be
+dropped by a flag.
+
+```
+preen --pushed --pushed-base origin/main~4
+```
+
+The push is a third, separate confirmation, it shows you the exact command
+first, and it always uses `--force-with-lease` so it aborts rather than
+clobbering work that arrived after your last fetch. Consent is per invocation:
+the config file cannot grant it.
+
+## Commands
+
+```
+preen                  Group the working tree into commits.
+preen restore [ref]    Undo a run. Defaults to the most recent backup.
+preen backups          List recovery refs. --prune deletes the safe ones.
+```
+
+Exit codes are distinct, so a script can tell a rolled-back run (6, 7) from a
+rejected plan (5) or a declined one (8).
 
 ## Undo
 
-The split is reversible. Reset back to where you started and every change
-returns to the working tree:
+```
+preen restore
+```
 
-```
-git reset --soft <sha-before-the-split>
-```
+This moves the branch back and returns your work to the working tree exactly as
+it was: same files, same content, uncommitted. It only ever accepts a
+`preen-backup/` ref, so it cannot move your branch somewhere unrelated.
 
 ## Development
 
-`hack/eval.sh` runs the skill headless against fixture repos and asserts on
-the resulting git state: clean tree, commit counts, style conformance, merge
-and scope guards. It needs the claude CLI and spends real tokens; `hack/eval.sh`
-for the quick set, `--all` for everything.
+```
+go test ./...
+```
+
+The tests run against real git repositories in temp directories rather than a
+mock, because matching git's own index and patch behavior is the whole job. The
+conservation invariant, the published-merge guard, and the restore round trip
+each have their own regression test.
 
 ## More tools
 
