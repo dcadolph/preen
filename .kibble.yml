@@ -1,0 +1,8 @@
+# Settings kibble uses when it replays this README in a clean container.
+# The grouper flag points at an executable the reader supplies to decide how
+# their own changes group, so the session has nothing to run there.
+version: 1
+examples:
+  steps:
+    - match: "--grouper ./my-grouper"
+      skip: "points at a grouper script the reader supplies"
