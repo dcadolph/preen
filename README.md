@@ -2,6 +2,7 @@
 
 # preen
 
+[![Latest release](https://img.shields.io/github/v/release/dcadolph/preen)](https://github.com/dcadolph/preen/releases/latest)
 [![License](https://img.shields.io/github/license/dcadolph/preen)](LICENSE)
 
 Clean up your commit history, automatically.
@@ -10,13 +11,17 @@ Clean up your commit history, automatically.
 
 You got in the zone and came out with forty changed files and no commits, or one
 giant blob with a message like `wip` that you are not proud of. preen turns that
-into a clean, ordered set of atomic commits with real messages: the history you
-would have written if you had committed carefully as you went.
+into a clean, ordered set of atomic commits: the shape of the history you would
+have written if you had committed carefully as you went.
 
 Think `git add -p` and `git rebase -i`, done for you. preen reads everything you
-changed, groups it into coherent commits, writes a sensible message for each,
-orders them so the history bisects, and shows you the plan first. Nothing moves
-until you approve.
+changed, groups it into coherent commits, writes a subject for each, orders them
+so the history bisects, and shows you the plan first. Nothing moves until you
+approve.
+
+The built-in subjects say where, not why: `Add api`, `Update dependencies`. For
+messages that explain intent, hand grouping to any program you like with
+`--grouper`, a model included, and reword anything at the approval prompt.
 
 Clean history is worth having on its own. It makes review readable, `git bisect`
 useful, and `git blame` honest. preen gets you there without the tedious
@@ -107,8 +112,8 @@ cannot walk you into losing a change.
 - Runs your build or test gate after each commit with `--gate`, rolling the whole
   run back on failure.
 - Preens only part of the tree with `--scope`, leaving the rest dirty.
-- Spaces commit timestamps across a window with `--spread 2h`, or `--spread auto`
-  to size the window from the run, instead of stamping them all in the same second.
+- Plans without acting with `--dry-run`, and skips the approval prompt with
+  `--yes` for scripted runs.
 - Reports debug prints, scratch markers, commented-out code, and skipped tests
   with `--sweep`, and never removes any of them.
 - Undoes any run with `preen restore`, and cleans up old recovery refs with
@@ -151,7 +156,7 @@ preen writes a short imperative subject by default. Dictate the format with
 flags:
 
 ```
-preen --conventional --prefix ABC-123 --max-subject 50 --no-emdash
+preen --conventional --prefix ABC-123 --max-subject 50 --no-emdash --no-semicolon
 ```
 
 `--punctuation auto` reads your repository's own recent subjects and follows
@@ -173,7 +178,6 @@ include-files = false
 
 [run]
 gate = "go test ./..."
-spread = "2h"
 sweep = true
 allow-no-verify = false
 
@@ -187,7 +191,9 @@ enforced rather than merely requested.
 
 If your repository has hooks that block automated commits, set
 `allow-no-verify = true` under `[run]` to grant standing consent ahead of time.
-preen never bypasses a hook on its own judgment.
+preen never bypasses a hook on its own judgment. A hook that reformats what the
+run commits would normally trip the conservation check; `--allow-hook-rewrites`
+accepts content differences confined to the paths the run committed.
 
 ## Rewriting published history
 
@@ -239,12 +245,23 @@ mock, because matching git's own index and patch behavior is the whole job. The
 conservation invariant, the published-merge guard, and the restore round trip
 each have their own regression test.
 
+## Claude Code plugin
+
+The repository is also a Claude Code plugin. Add it as a marketplace and asking
+Claude to "clean up my commit history" loads a skill that drives the same
+binary, with every guardrail intact:
+
+```
+/plugin marketplace add dcadolph/preen
+/plugin install preen@preen
+```
+
 ## More tools
 
 - [kibble](https://github.com/dcadolph/kibble), test your README's install steps in a clean container
 - [slop-chop](https://github.com/dcadolph/slop-chop), strip the AI tells out of your writing
 - [vamoose](https://github.com/dcadolph/vamoose), route time off through approval, then tell the team
-- [whodar](https://github.com/dcadolph/whodar), find who to talk to about X across your work tools
+- [whodar](https://github.com/kordloom/whodar), find who to talk to about X across your work tools
 
 ## License
 
