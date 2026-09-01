@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/dcadolph/preen/style"
 )
@@ -74,7 +73,6 @@ func TestLoadRunSection(t *testing.T) {
 	root := writeConfig(t, `
 [run]
 gate = "go test ./..."
-spread = "2h"
 allow-no-verify = true
 
 [protect]
@@ -86,9 +84,6 @@ branches = ["develop", "release/*"]
 	}
 	if cfg.Run.Gate != "go test ./..." {
 		t.Errorf("gate = %q, want the configured command", cfg.Run.Gate)
-	}
-	if got := cfg.SpreadWindow(); got != 2*time.Hour {
-		t.Errorf("SpreadWindow() = %v, want 2h", got)
 	}
 	if !cfg.Run.AllowNoVerify {
 		t.Error("allow-no-verify did not survive the round trip")
@@ -111,7 +106,6 @@ func TestLoadRejectsBadValues(t *testing.T) {
 		{Name: "not toml", In: "this is not toml {{{", Want: ErrParse},
 		{Name: "bad punctuation", In: "[commit]\npunctuation = \"sometimes\"\n", Want: ErrParse},
 		{Name: "negative cap", In: "[commit]\nmax-subject = -1\n", Want: ErrParse},
-		{Name: "bad duration", In: "[run]\nspread = \"soon\"\n", Want: ErrParse},
 	}
 
 	for testNum, test := range tests {

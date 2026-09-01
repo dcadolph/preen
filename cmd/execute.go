@@ -32,8 +32,6 @@ Run flags:
   --gate CMD      Run CMD after each commit; a failure rolls the run back.
   --absorb        Bring unpushed commits back and redo them.
   --fixup         Fold changes into the unpushed commits that introduced them.
-  --spread DUR    Spread commit timestamps across a window, like 2h, or auto
-                  to size the window from the run.
   --sweep         Report debug prints and other leftovers. Never removes them.
   --grouper PROG  Group with an external program instead of the built-in rules.
                   PROG reads JSON on stdin and writes JSON on stdout, and can

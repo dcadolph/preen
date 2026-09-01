@@ -12,7 +12,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dcadolph/preen/style"
@@ -64,8 +63,6 @@ type CommitSection struct {
 type RunSection struct {
 	// Gate is a command run after each commit.
 	Gate string `toml:"gate"`
-	// Spread is a duration like "2h" that spaces commit timestamps.
-	Spread string `toml:"spread"`
 	// AllowNoVerify is standing consent to bypass commit hooks, written into
 	// the repository ahead of time so a hook-blocked project can still preen.
 	AllowNoVerify bool `toml:"allow-no-verify"`
@@ -117,11 +114,6 @@ func (c Config) validate() error {
 	default:
 		return fmt.Errorf("%w: body %q must be auto, always, or never", ErrParse, c.Commit.Body)
 	}
-	if c.Run.Spread != "" && c.Run.Spread != "auto" {
-		if _, err := time.ParseDuration(c.Run.Spread); err != nil {
-			return fmt.Errorf("%w: spread %q: %w", ErrParse, c.Run.Spread, err)
-		}
-	}
 	return nil
 }
 
@@ -139,22 +131,4 @@ func (c Config) Style() style.Style {
 		SignOff:      c.Commit.SignOff,
 		Body:         style.BodyMode(c.Commit.Body),
 	}
-}
-
-// SpreadAuto reports whether the config asks for an automatically sized spread
-// window rather than a fixed one.
-func (c Config) SpreadAuto() bool { return c.Run.Spread == "auto" }
-
-// SpreadWindow returns the configured spread duration, or zero when unset.
-func (c Config) SpreadWindow() time.Duration {
-	if c.Run.Spread == "" || c.Run.Spread == "auto" {
-		return 0
-	}
-	// The value was validated at load time, so a parse failure here cannot
-	// happen and a zero window simply means no spreading.
-	window, err := time.ParseDuration(c.Run.Spread)
-	if err != nil {
-		return 0
-	}
-	return window
 }

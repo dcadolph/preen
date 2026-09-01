@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/dcadolph/preen/style"
 )
@@ -119,40 +118,6 @@ func TestPunctuationAutoFollowsTheRepository(t *testing.T) {
 					p.Commits[0].Subject, got, test.WantDot)
 			}
 		})
-	}
-}
-
-// TestSpreadAutoScalesWithTheRun checks that the automatic window grows with
-// the number of commits rather than being a fixed guess.
-func TestSpreadAutoScalesWithTheRun(t *testing.T) {
-	t.Parallel()
-	h := newHarness(t)
-
-	tests := []struct {
-		Name    string
-		Commits int
-		Want    time.Duration
-	}{
-		{Name: "tiny run", Commits: 1, Want: 15 * time.Minute},
-		{Name: "small run", Commits: 4, Want: time.Hour},
-		{Name: "medium run", Commits: 8, Want: 3 * time.Hour},
-		{Name: "large run", Commits: 20, Want: 6 * time.Hour},
-	}
-
-	for testNum, test := range tests {
-		t.Run(test.Name, func(t *testing.T) {
-			t.Parallel()
-			got := h.spreadWindow(Options{SpreadAuto: true}, test.Commits)
-			if got != test.Want {
-				t.Errorf("test %d window for %d commits = %v, want %v",
-					testNum, test.Commits, got, test.Want)
-			}
-		})
-	}
-
-	// An explicit window is never overridden by the automatic one.
-	if got := h.spreadWindow(Options{Spread: 90 * time.Minute}, 20); got != 90*time.Minute {
-		t.Errorf("explicit window = %v, want it kept", got)
 	}
 }
 
