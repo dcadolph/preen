@@ -33,7 +33,8 @@ matters more than avoiding a process boundary.
 - Groups the changes into atomic commits, ordered so dependencies land first.
 - Shows a plan and changes nothing until it is approved. The prompt accepts
   merge, split, move, reword, drop, and reorder.
-- Stages each group precisely, including a subset of one file's hunks, commits,
+- Stages each group precisely, including a subset of one file's hunks when an
+  external grouper splits a file (the built-in grouper never does), commits,
   and optionally runs a gate after each commit.
 - Folds changes into the commits that introduced them with `--fixup`.
 - Rewrites published history only behind two consents, then pushes behind a
