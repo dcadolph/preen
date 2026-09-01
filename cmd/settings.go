@@ -19,14 +19,6 @@ func applyConfig(opts *run.Options, cfg config.Config, args []string) {
 	if !flagGiven(args, "gate") && cfg.Run.Gate != "" {
 		opts.Gate = cfg.Run.Gate
 	}
-	if !flagGiven(args, "spread") {
-		if cfg.SpreadWindow() > 0 {
-			opts.Spread = cfg.SpreadWindow()
-		}
-		if cfg.SpreadAuto() {
-			opts.SpreadAuto = true
-		}
-	}
 	if !flagGiven(args, "sweep") && cfg.Run.Sweep {
 		opts.Sweep = true
 	}

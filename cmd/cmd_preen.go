@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	"github.com/dcadolph/preen/config"
 	"github.com/dcadolph/preen/group"
@@ -157,7 +156,7 @@ func parseRunFlags(env *environment, args []string) (opts run.Options, settings 
 	fs.Usage = func() { env.print(usage) }
 
 	var scope stringList
-	var spread, grouperCmd string
+	var grouperCmd string
 	fs.Var(&scope, "scope", "limit the run to paths under this prefix (repeatable)")
 	fs.StringVar(&opts.Gate, "gate", "", "command to run after each commit")
 	fs.BoolVar(&opts.Absorb, "absorb", false, "bring unpushed commits back and redo them")
@@ -171,7 +170,6 @@ func parseRunFlags(env *environment, args []string) (opts run.Options, settings 
 	fs.BoolVar(&opts.NoVerify, "no-verify", false, "skip commit hooks")
 	fs.BoolVar(&opts.AllowHookRewrites, "allow-hook-rewrites", false,
 		"accept content changes a commit hook made to files the run committed")
-	fs.StringVar(&spread, "spread", "", "spread commit timestamps across a window, like 2h, or auto")
 	fs.BoolVar(&opts.Sweep, "sweep", false, "report debug prints and other leftovers in the diff")
 	fs.BoolVar(&settings.DryRun, "dry-run", false, "show the plan and stop")
 	fs.BoolVar(&settings.Yes, "yes", false, "skip the approval prompt")
@@ -219,18 +217,6 @@ func parseRunFlags(env *environment, args []string) (opts run.Options, settings 
 			return run.Options{}, promptSettings{},
 				fmt.Errorf("%w: --body must be auto, always, or never", ErrUsage)
 		}
-	}
-	if spread == "auto" {
-		opts.SpreadAuto = true
-	} else if spread != "" {
-		window, err := time.ParseDuration(spread)
-		if err != nil {
-			return run.Options{}, promptSettings{}, fmt.Errorf("%w: --spread %q: %w", ErrUsage, spread, err)
-		}
-		if window <= 0 {
-			return run.Options{}, promptSettings{}, fmt.Errorf("%w: --spread must be positive", ErrUsage)
-		}
-		opts.Spread = window
 	}
 	settings.Grouper = grouperCmd
 	return opts, settings, nil

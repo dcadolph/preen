@@ -34,9 +34,6 @@ type Options struct {
 	// NoVerify skips commit hooks, which requires standing consent from the
 	// caller and is never preen's own decision.
 	NoVerify bool
-	// Spread spaces commit timestamps across a window ending now, instead of
-	// stamping every commit in the same second.
-	Spread time.Duration
 	// AllowHookRewrites accepts content differences confined to paths the run
 	// committed, which is what a reformatting commit hook produces.
 	AllowHookRewrites bool
@@ -62,9 +59,6 @@ type Options struct {
 	// IncludeLineNumbers cites each file's changed line ranges in the body,
 	// read from the hunk headers of the real diff.
 	IncludeLineNumbers bool
-	// SpreadAuto picks a plausible spread window from the size of the run,
-	// instead of taking one from the caller.
-	SpreadAuto bool
 	// Sweep scans the added lines for debris and reports what it finds. It
 	// never removes anything.
 	Sweep bool
@@ -383,14 +377,12 @@ func (e *Engine) execute(ctx context.Context, p *plan.Plan, opts Options, result
 	if err := e.Repo.ClearIndex(ctx); err != nil {
 		return err
 	}
-	stamps := e.timestamps(len(p.Commits), e.spreadWindow(opts, len(p.Commits)))
 	for i, commit := range p.Commits {
 		if err := e.stage(ctx, commit); err != nil {
 			return fmt.Errorf("commit %d (%q): %w", i+1, commit.Subject, err)
 		}
 		hash, err := e.Repo.Commit(ctx, repo.CommitOptions{
 			Message:  commit.Message(),
-			Date:     stamps[i],
 			NoVerify: opts.NoVerify,
 		})
 		if err != nil {
@@ -548,42 +540,6 @@ func (e *Engine) rollback(ctx context.Context, backup string, cause error) error
 		return fmt.Errorf("%w (restore from %s also failed: %w)", cause, backup, err)
 	}
 	return fmt.Errorf("%w (restored from %s)", cause, backup)
-}
-
-// spreadWindow returns the window commit timestamps are spread across. The
-// auto mode scales with the size of the run: a couple of commits read as a few
-// minutes of work, a long run as a few hours.
-func (e *Engine) spreadWindow(opts Options, commits int) time.Duration {
-	if !opts.SpreadAuto {
-		return opts.Spread
-	}
-	switch {
-	case commits <= 2:
-		return 15 * time.Minute
-	case commits <= 5:
-		return time.Hour
-	case commits <= 10:
-		return 3 * time.Hour
-	default:
-		return 6 * time.Hour
-	}
-}
-
-// timestamps returns the commit dates for a run. Without a spread window every
-// commit takes the current time, which git records as the same second.
-func (e *Engine) timestamps(count int, window time.Duration) []time.Time {
-	stamps := make([]time.Time, count)
-	if window <= 0 || count == 0 {
-		return stamps
-	}
-	end := e.Now()
-	step := window / time.Duration(count)
-	for i := range stamps {
-		// Commits are stamped oldest first so the times strictly increase and
-		// the last one lands at now.
-		stamps[i] = end.Add(-window + step*time.Duration(i+1))
-	}
-	return stamps
 }
 
 // pathsOf returns the paths of a change set.

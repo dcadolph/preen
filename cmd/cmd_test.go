@@ -360,8 +360,6 @@ func TestBadFlagsAreRejected(t *testing.T) {
 		Args []string
 	}{
 		{Name: "bad punctuation", Args: []string{"--punctuation", "sometimes"}},
-		{Name: "bad spread", Args: []string{"--spread", "soon"}},
-		{Name: "negative spread", Args: []string{"--spread", "-2h"}},
 		{Name: "unknown flag", Args: []string{"--nope"}},
 	}
 

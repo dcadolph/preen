@@ -4,16 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 )
 
 // CommitOptions controls how a single commit is recorded.
 type CommitOptions struct {
 	// Message is the full commit message, subject and optional body.
 	Message string
-	// Date stamps both the author and committer date when non-zero, which
-	// spreads a run's commits across a plausible window.
-	Date time.Time
 	// NoVerify skips commit hooks. It requires standing consent from the
 	// caller, never preen's own judgment.
 	NoVerify bool
@@ -132,12 +128,7 @@ func (r *Repo) Commit(ctx context.Context, opts CommitOptions) (string, error) {
 	if opts.NoVerify {
 		args = append(args, "--no-verify")
 	}
-	var env []string
-	if !opts.Date.IsZero() {
-		stamp := opts.Date.Format(time.RFC3339)
-		env = []string{"GIT_AUTHOR_DATE=" + stamp, "GIT_COMMITTER_DATE=" + stamp}
-	}
-	if _, err := r.runEnv(ctx, env, args...); err != nil {
+	if _, err := r.run(ctx, args...); err != nil {
 		return "", err
 	}
 	return r.Head(ctx)

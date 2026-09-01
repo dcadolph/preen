@@ -3,7 +3,6 @@ package run
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -246,34 +245,5 @@ func TestScopeLimitsTheRun(t *testing.T) {
 	committed := h.git("show", "--name-only", "--format=", "HEAD")
 	if strings.Contains(committed, "store/") {
 		t.Errorf("out-of-scope path landed in a commit:\n%s", committed)
-	}
-}
-
-// TestSpreadTimestamps checks that a spread window produces strictly
-// increasing commit times instead of stamping every commit identically.
-func TestSpreadTimestamps(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	h := newHarness(t)
-	h.messyTree()
-
-	p, err := h.Plan(ctx, Options{})
-	if err != nil {
-		t.Fatalf("Plan: %v", err)
-	}
-	if _, err := h.Apply(ctx, p, Options{Spread: 2 * time.Hour}); err != nil {
-		t.Fatalf("Apply: %v", err)
-	}
-	out := h.git("log", "--format=%at", "-n", "5")
-	var last int64 = -1
-	for _, line := range strings.Fields(out) {
-		var stamp int64
-		if _, err := fmt.Sscanf(line, "%d", &stamp); err != nil {
-			t.Fatalf("parse timestamp %q: %v", line, err)
-		}
-		if last >= 0 && stamp >= last {
-			t.Errorf("timestamps not strictly decreasing in log order: %d then %d", last, stamp)
-		}
-		last = stamp
 	}
 }
