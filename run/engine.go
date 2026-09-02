@@ -337,6 +337,11 @@ func (e *Engine) survey(ctx context.Context, opts Options, base string) ([]repo.
 
 // Apply carries out a plan and verifies that content was conserved. On any
 // divergence it restores from the backup ref and reports what differed.
+//
+// The plan describes the tree as it was when Plan surveyed it. A change that
+// arrives after that survey is not in the plan and stays uncommitted: planned
+// hunks are matched by body rather than position, so an edit that removes one
+// fails the run rather than committing the wrong lines.
 func (e *Engine) Apply(ctx context.Context, p *plan.Plan, opts Options) (*Result, error) {
 	if err := e.Repo.CheckReady(ctx); err != nil {
 		return nil, err
