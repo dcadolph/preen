@@ -16,8 +16,8 @@ have written if you had committed carefully as you went.
 
 Think `git add -p` and `git rebase -i`, done for you. preen reads everything you
 changed, groups it into coherent commits, writes a subject for each, orders them
-so the history bisects, and shows you the plan first. Nothing moves until you
-approve.
+so dependencies land first, and shows you the plan first. Nothing moves until
+you approve.
 
 The built-in subjects say where, not why: `Add api`, `Update dependencies`. For
 messages that explain intent, hand grouping to any program you like with
@@ -27,7 +27,7 @@ Clean history is worth having on its own. It makes review readable, `git bisect`
 useful, and `git blame` honest. preen gets you there without the tedious
 hand-staging.
 
-## It cannot lose your work
+## It proves it did not lose your work
 
 preen only reshapes history, never content, and it enforces that rather than
 promising it.
@@ -99,7 +99,8 @@ cannot walk you into losing a change.
 
 - Surveys every uncommitted change: staged, unstaged, and untracked.
 - Groups them into atomic commits, one coherent idea each, ordered so
-  dependencies land first and the history could be bisected.
+  dependencies land first. Add `--gate` to verify each commit builds and passes
+  on its own.
 - Absorbs a run of unpushed commits back into the tree and redoes them clean
   with `--absorb`, no manual reset.
 - Folds dirty changes into the unpushed commits that introduced them with
