@@ -30,7 +30,8 @@ matters more than avoiding a process boundary.
 
 - Surveys every uncommitted change, including untracked files, and optionally
   absorbs unpushed commits back into the tree to be redone.
-- Groups the changes into atomic commits, ordered so dependencies land first.
+- Groups the changes into self-contained commits, ordered so dependencies land
+  first. The rules group by structure; semantic splitting needs a grouper.
 - Shows a plan and changes nothing until it is approved. The prompt accepts
   merge, split, move, reword, drop, and reorder.
 - Stages each group precisely, including a subset of one file's hunks when an
