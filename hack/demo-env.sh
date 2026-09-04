@@ -1,148 +1,164 @@
-# Sourced by the preen demo tape. Builds a dirty sandbox repo and a preen stand-in
-# for the recording, then clears. Not used at runtime by preen itself.
+# Sourced by the preen demo tape. Builds the binary under test and a dirty
+# sandbox repository for it to work on, then puts the binary on PATH so the
+# recording drives the real program. Not used at runtime by preen itself.
+
+set -e
+
+DEMOBIN="$(mktemp -d)"
+go build -o "$DEMOBIN/preen" "$PREENREPO"
+export PATH="$DEMOBIN:$PATH"
 
 cd /tmp
 rm -rf preendemo
 mkdir preendemo
 cd preendemo
-git init -q
+
+git init -q -b main
 git config user.email demo@example.com
 git config user.name demo
 git config commit.gpgsign false
 git config core.pager cat
 
-mkdir -p internal/config internal/api internal/store cmd
+mkdir -p api store docs
 
-# Initial project: everything already exists and is committed, so the later
-# changes show up as modified files under a plain git status.
-printf 'module demo\n\ngo 1.22\n' > go.mod
-printf '# demo\n\nA small service.\n' > README.md
-cat > internal/config/config.go <<'EOF'
-package config
-
-type Config struct {
-	OutputDir string
-}
-EOF
-cat > internal/config/loader.go <<'EOF'
-package config
-
-func Load() (*Config, error) {
-	return &Config{}, nil
-}
-EOF
-cat > internal/api/handler.go <<'EOF'
+# The committed starting point, so later edits show up as modifications rather
+# than a repository made entirely of untracked files.
+printf 'module example.com/service\n\ngo 1.26\n' > go.mod
+cat > api/server.go <<'EOF'
 package api
 
-import "net/http"
+// Server serves the HTTP API.
+type Server struct {
+	addr string
+}
 
-func Root(w http.ResponseWriter, _ *http.Request) {}
-EOF
-cat > internal/api/router.go <<'EOF'
-package api
-
-import "net/http"
-
-func Routes() *http.ServeMux {
-	return http.NewServeMux()
+// New returns a Server bound to addr.
+func New(addr string) *Server {
+	return &Server{addr: addr}
 }
 EOF
-cat > internal/store/store.go <<'EOF'
-package store
+cat > docs/guide.md <<'EOF'
+# Guide
 
-type Store struct{}
-EOF
-cat > cmd/flags.go <<'EOF'
-package cmd
-
-var Verbose bool
+How to run the service.
 EOF
 git add -A
-git commit -q -m "Initial project"
+git commit -qm "Add the service skeleton"
 
-# A pile of real work, several concerns at once, all edits to existing files.
-cat > internal/config/config.go <<'EOF'
-package config
+# The mess: a working session that never stopped to commit. It spans every
+# category the grouper separates, so the plan shows real clustering.
+cat > go.mod <<'EOF'
+module example.com/service
+
+go 1.26
+
+require github.com/lib/pq v1.10.9
+EOF
+
+cat > api/server.go <<'EOF'
+package api
+
+import "net/http"
+
+// Server serves the HTTP API.
+type Server struct {
+	addr string
+	mux  *http.ServeMux
+}
+
+// New returns a Server bound to addr.
+func New(addr string) *Server {
+	return &Server{addr: addr, mux: http.NewServeMux()}
+}
+
+// Handle registers a route.
+func (s *Server) Handle(path string, h http.Handler) {
+	s.mux.Handle(path, h)
+}
+EOF
+
+cat > api/auth.go <<'EOF'
+package api
 
 import "errors"
 
-type Config struct {
-	OutputDir string
-}
+// ErrUnauthorized is returned when a token is missing or invalid.
+var ErrUnauthorized = errors.New("unauthorized")
 
-func (c *Config) Validate() error {
-	if c.OutputDir == "" {
-		return errors.New("output dir required")
+// Authenticate verifies a bearer token.
+func Authenticate(token string) error {
+	if token == "" {
+		return ErrUnauthorized
 	}
 	return nil
 }
 EOF
-cat > internal/config/loader.go <<'EOF'
-package config
 
-import "os"
-
-func Load() (*Config, error) {
-	c := &Config{OutputDir: os.Getenv("OUTPUT_DIR")}
-	return c, c.Validate()
-}
-EOF
-cat > internal/api/handler.go <<'EOF'
+cat > api/auth_test.go <<'EOF'
 package api
 
-import "net/http"
+import "testing"
 
-func Root(w http.ResponseWriter, _ *http.Request) {}
-
-func Health(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
+func TestAuthenticate(t *testing.T) {
+	if err := Authenticate(""); err == nil {
+		t.Error("empty token was accepted")
+	}
 }
 EOF
-cat > internal/api/router.go <<'EOF'
-package api
 
-import "net/http"
-
-func Routes() *http.ServeMux {
-	m := http.NewServeMux()
-	m.HandleFunc("/health", Health)
-	return m
-}
-EOF
-cat > internal/store/store.go <<'EOF'
+cat > store/db.go <<'EOF'
 package store
 
-import "time"
+import "database/sql"
 
-type Store struct {
-	Timeout time.Duration
+// DB wraps the connection pool.
+type DB struct {
+	conn *sql.DB
+}
+
+// Open connects to the database.
+func Open(dsn string) (*DB, error) {
+	conn, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return nil, err
+	}
+	return &DB{conn: conn}, nil
 }
 EOF
-cat > cmd/flags.go <<'EOF'
-package cmd
 
-var (
-	Verbose   bool
-	OutputDir string
-)
-EOF
-printf '# demo\n\nA small service.\n\n## Flags\n\n- --output-dir sets the output directory.\n' > README.md
+cat > store/migrate.go <<'EOF'
+package store
 
-# Scripted stand-in for the preen skill, so the tape can show a real split.
-preen() {
-  git reset --soft HEAD~1 >/dev/null 2>&1
-  git reset -q >/dev/null 2>&1
-  printf '\n\033[1mpreen\033[0m absorbed the wip commit. Planned 5 commits:\n\n'
-  printf '  1. Add config validation   internal/config/config.go, loader.go\n'
-  printf '  2. Add health endpoint     internal/api/handler.go, router.go\n'
-  printf '  3. Add output dir flag     cmd/flags.go\n'
-  printf '  4. Add store timeout       internal/store/store.go\n'
-  printf '  5. Update the README       README.md\n'
-  printf '\napprove? (y) y\n\n'
-  git add internal/config/config.go internal/config/loader.go && git commit -q -m "Add config validation"
-  git add internal/api/handler.go internal/api/router.go && git commit -q -m "Add health endpoint"
-  git add cmd/flags.go && git commit -q -m "Add output dir flag"
-  git add internal/store/store.go && git commit -q -m "Add store timeout"
-  git add README.md && git commit -q -m "Update the README"
-  printf '\033[32m7 files became 5 clean commits, ready to push\033[0m\n'
+// Migrate applies the schema.
+func (d *DB) Migrate() error {
+	_, err := d.conn.Exec(`CREATE TABLE IF NOT EXISTS users (id INT PRIMARY KEY)`)
+	return err
 }
+EOF
+
+cat > docs/guide.md <<'EOF'
+# Guide
+
+How to run the service.
+
+## Authentication
+
+Send a bearer token with every request.
+EOF
+
+mkdir -p .github/workflows
+cat > .github/workflows/ci.yml <<'EOF'
+name: ci
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test ./...
+EOF
+
+echo "scratch notes, do not commit" > scratch.txt
+
+# Staged by hand, which preen treats as a boundary the author drew deliberately.
+git add api/auth.go
