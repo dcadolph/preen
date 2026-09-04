@@ -18,6 +18,19 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
+      # goreleaser runs after the tag push that created the release, and it
+      # resets the release name to the bare tag. Remember the title first so
+      # the descriptive one can be put back.
+      - name: Remember the release title
+        id: title
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          name="$(gh release view "$GITHUB_REF_NAME" --json name --jq .name 2>/dev/null || true)"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
@@ -25,3 +38,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Restore the release title
+        if: steps.title.outputs.name != '' && steps.title.outputs.name != github.ref_name
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --title "${{ steps.title.outputs.name }}"
