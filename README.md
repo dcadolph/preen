@@ -11,8 +11,8 @@ Clean up your commit history, automatically.
 
 You got in the zone and came out with forty changed files and no commits, or one
 giant blob with a message like `wip` that you are not proud of. preen turns that
-into a clean, ordered set of atomic commits: the shape of the history you would
-have written if you had committed carefully as you went.
+into a clean, ordered set of small, self-contained commits: the shape of the
+history you would have written if you had committed carefully as you went.
 
 Think `git add -p` and `git rebase -i`, done for you. preen reads everything you
 changed, groups it into coherent commits, writes a subject for each, orders them
@@ -98,9 +98,10 @@ cannot walk you into losing a change.
 ## What it does
 
 - Surveys every uncommitted change: staged, unstaged, and untracked.
-- Groups them into atomic commits, one coherent idea each, ordered so
-  dependencies land first. Add `--gate` to verify each commit builds and passes
-  on its own.
+- Groups them by package, keeps a test with the code it exercises, and separates
+  dependencies, CI, documentation, and configuration, so each commit stands on
+  its own. Structure is what the rules can see; a `--grouper` program judges
+  intent. Add `--gate` to verify each commit builds and passes.
 - Absorbs a run of unpushed commits back into the tree and redoes them clean
   with `--absorb`, no manual reset.
 - Folds dirty changes into the unpushed commits that introduced them with
