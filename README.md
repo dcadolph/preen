@@ -258,12 +258,6 @@ binary, with every guardrail intact:
 /plugin install preen@preen
 ```
 
-## More tools
-
-- [kibble](https://github.com/dcadolph/kibble), test your README's install steps in a clean container
-- [slop-chop](https://github.com/dcadolph/slop-chop), strip the AI tells out of your writing
-- [vamoose](https://github.com/dcadolph/vamoose), route time off through approval, then tell the team
-
 ## License
 
 MIT.
