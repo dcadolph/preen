@@ -17,11 +17,17 @@ func fakeGrouper(t *testing.T, response string) Command {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "grouper.sh")
-	script := "#!/bin/sh\ncat > /dev/null\ncat <<'JSON'\n" + response + "\nJSON\n"
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil { //nolint:gosec // Test fixture.
+	script := "cat > /dev/null\ncat <<'JSON'\n" + response + "\nJSON\n"
+	if err := os.WriteFile(path, []byte(script), 0o600); err != nil {
 		t.Fatalf("write script: %v", err)
 	}
-	return Command{Name: path, Dir: dir}
+	// Handed to sh as an argument rather than executed directly. Executing a
+	// file this process just wrote races with the forks of every other parallel
+	// subtest: a child can still hold the write descriptor when the exec lands,
+	// and Linux answers ETXTBSY. That surfaced as one subtest in twenty failing
+	// with "text file busy" on CI and never on a developer's machine. sh is not
+	// a file these tests write, so there is no window to lose.
+	return Command{Name: "/bin/sh", Args: []string{path}, Dir: dir}
 }
 
 // splitInput is a two-hunk file, the case only a smarter grouper can divide.
