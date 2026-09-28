@@ -2,6 +2,7 @@
 
 # preen
 
+[![ci](https://github.com/dcadolph/preen/actions/workflows/ci.yml/badge.svg)](https://github.com/dcadolph/preen/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/dcadolph/preen)](https://github.com/dcadolph/preen/releases/latest)
 [![License](https://img.shields.io/github/license/dcadolph/preen)](LICENSE)
 
