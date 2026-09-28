@@ -115,9 +115,11 @@ func TestHeuristicVerbMatchesTheChange(t *testing.T) {
 			WantPrefix: "Update",
 		},
 		{
+			// An edit and a deletion are both changes to code that is already
+			// there, so they share a commit and the verb covers both.
 			Name: "mixed becomes an update",
 			Changes: []repo.Change{
-				{Path: "api/server.go", Kind: repo.KindUntracked},
+				{Path: "api/server.go", Kind: repo.KindModified},
 				{Path: "api/old.go", Kind: repo.KindDeleted},
 			},
 			WantPrefix: "Update",
