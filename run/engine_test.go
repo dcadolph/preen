@@ -14,6 +14,26 @@ import (
 	"github.com/dcadolph/preen/repo"
 )
 
+// TestMain isolates the package from the developer's git configuration.
+//
+// The harness already passes GIT_CONFIG_GLOBAL and GIT_CONFIG_SYSTEM to the
+// commands it runs itself, but the engine under test spawns git on its own, and
+// those children inherit the process environment rather than the harness's. A
+// developer who installs shared hooks the usual way, by pointing core.hooksPath
+// at a directory in their global config, would watch the hook tests fail against
+// hooks they never wrote: the repository-local hook the test installs is ignored
+// while core.hooksPath is set, so a hook that is supposed to reject a rewrite
+// never runs at all.
+func TestMain(m *testing.M) {
+	if err := os.Setenv("GIT_CONFIG_GLOBAL", os.DevNull); err != nil {
+		panic(err)
+	}
+	if err := os.Setenv("GIT_CONFIG_SYSTEM", os.DevNull); err != nil {
+		panic(err)
+	}
+	os.Exit(m.Run())
+}
+
 // harness is a real repository plus an engine wired to it.
 type harness struct {
 	// Engine is the engine under test.
