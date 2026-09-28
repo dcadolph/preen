@@ -1,0 +1,31 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go build ./...
+      - run: go vet ./...
+      # preen drives a real git, so the tests need an identity to commit with
+      # and a runner whose git is not carrying a stale default branch name.
+      - name: Configure git for the tests
+        run: |
+          git config --global user.name "preen ci"
+          git config --global user.email "ci@example.com"
+          git config --global init.defaultBranch main
+      - run: go test ./...
+      - name: Check formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt would change these files:"
+            echo "$unformatted"
+            exit 1
+          fi
