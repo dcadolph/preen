@@ -28,6 +28,24 @@ type Config struct {
 	Run RunSection `toml:"run"`
 	// Protect names branches that must never be rewritten.
 	Protect ProtectSection `toml:"protect"`
+	// Generated tunes which paths preen refuses to commit as generated output.
+	Generated GeneratedSection `toml:"generated"`
+}
+
+// GeneratedSection tunes the never-commit patterns for one repository.
+//
+// The defaults cover the caches and build output every project produces, and
+// this section is how a project that keeps one of those paths on purpose says
+// so, or adds a pattern of its own.
+type GeneratedSection struct {
+	// AllowAll commits generated output like any other change, which turns the
+	// check off for the whole repository.
+	AllowAll bool `toml:"allow-all"`
+	// Patterns are extra never-commit patterns.
+	Patterns []string `toml:"patterns"`
+	// Allow are paths this repository commits deliberately, exempted from the
+	// patterns that would otherwise catch them.
+	Allow []string `toml:"allow"`
 }
 
 // CommitSection is the message style expressed in file form, using the same

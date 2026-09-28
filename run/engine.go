@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dcadolph/preen/generated"
 	"github.com/dcadolph/preen/group"
 	"github.com/dcadolph/preen/plan"
 	"github.com/dcadolph/preen/repo"
@@ -62,6 +63,25 @@ type Options struct {
 	// Sweep scans the added lines for debris and reports what it finds. It
 	// never removes anything.
 	Sweep bool
+	// AllowGenerated plans generated output like any other change instead of
+	// holding it back, which is the consent a repository that vendors such a
+	// directory deliberately has to give.
+	AllowGenerated bool
+	// GeneratedPatterns are extra never-commit patterns the repository declares.
+	GeneratedPatterns []string
+	// GeneratedAllow are patterns exempted from the never-commit rules, for
+	// paths the repository commits on purpose.
+	GeneratedAllow []string
+}
+
+// generatedMatcher builds the never-commit matcher a run uses. The zero Options
+// holds the defaults back, since a tool that produces commits should not need
+// to be asked to keep build output out of them.
+func (o Options) generatedMatcher() generated.Matcher {
+	if o.AllowGenerated {
+		return generated.Off()
+	}
+	return generated.New(o.GeneratedPatterns, o.GeneratedAllow)
 }
 
 // Gate runs a check after a commit and reports failure.
@@ -176,12 +196,19 @@ func (e *Engine) Plan(ctx context.Context, opts Options) (*plan.Plan, error) {
 	if len(changes) == 0 && len(built.Absorbed) == 0 {
 		return nil, ErrNothingToDo
 	}
+	// Generated output is held back before the grouper ever sees it, so an
+	// external grouper cannot plan a commit for it either.
+	committable, held := holdGenerated(changes, opts.generatedMatcher())
+	built.Held = held
+	if len(committable) == 0 {
+		return nil, generatedOnly(held)
+	}
 
-	diffs, err := e.Repo.Diff(ctx, pathsOf(changes)...)
+	diffs, err := e.Repo.Diff(ctx, pathsOf(committable)...)
 	if err != nil {
 		return nil, err
 	}
-	commits, err := e.Grouper.Group(ctx, group.Input{Changes: changes, Diffs: diffs})
+	commits, err := e.Grouper.Group(ctx, group.Input{Changes: committable, Diffs: diffs})
 	if err != nil {
 		return nil, fmt.Errorf("grouping failed: %w", err)
 	}
@@ -198,7 +225,7 @@ func (e *Engine) Plan(ctx context.Context, opts Options) (*plan.Plan, error) {
 		commits[i] = shaped
 	}
 	if opts.Sweep {
-		for _, finding := range e.sweepAll(diffs, changes) {
+		for _, finding := range e.sweepAll(diffs, committable) {
 			built.Debris = append(built.Debris, finding.String())
 		}
 	}

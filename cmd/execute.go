@@ -33,6 +33,13 @@ Run flags:
   --absorb        Bring unpushed commits back and redo them.
   --fixup         Fold changes into the unpushed commits that introduced them.
   --sweep         Report debug prints and other leftovers. Never removes them.
+  --allow-generated
+                  Commit generated output instead of holding it back. Untracked
+                  paths matching a never-commit pattern (__pycache__/, *.pyc,
+                  node_modules/, .DS_Store, coverage output, editor swap files
+                  and the like) are left uncommitted and reported, since they
+                  regenerate themselves. Add [generated] to .preen.toml to
+                  extend or exempt the patterns for one repository.
   --grouper PROG  Group with an external program instead of the built-in rules.
                   PROG reads JSON on stdin and writes JSON on stdout, and can
                   split one file's hunks across commits. It falls back to the

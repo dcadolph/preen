@@ -110,6 +110,37 @@ func TestValidate(t *testing.T) {
 			Changes: changes("api.go"),
 			Want:    ErrInvalid,
 		},
+		{ // Test 10: A held path is accounted for like any other, which is what
+			// keeps refusing to commit generated output honest rather than
+			// silent.
+			Name: "held path covers the change",
+			Plan: Plan{
+				Commits: []Commit{whole("Add api", "api.go")},
+				Held: []Held{{
+					Part:    Part{Path: "__pycache__/api.cpython-313.pyc"},
+					Pattern: "__pycache__/",
+					Why:     "Python bytecode cache",
+				}},
+			},
+			Changes: changes("api.go", "__pycache__/api.cpython-313.pyc"),
+			Want:    nil,
+		},
+		{ // Test 11: Dropping the record of a held path leaves the change
+			// unaccounted for, so the coverage check catches it.
+			Name:    "held path missing from the plan",
+			Plan:    Plan{Commits: []Commit{whole("Add api", "api.go")}},
+			Changes: changes("api.go", "__pycache__/api.cpython-313.pyc"),
+			Want:    ErrInvalid,
+		},
+		{ // Test 12: A held path cannot also be claimed by a commit.
+			Name: "held path claimed twice",
+			Plan: Plan{
+				Commits: []Commit{whole("Add api", "api.go", "cache.pyc")},
+				Held:    []Held{{Part: Part{Path: "cache.pyc"}, Pattern: "*.pyc"}},
+			},
+			Changes: changes("api.go", "cache.pyc"),
+			Want:    ErrInvalid,
+		},
 	}
 
 	for testNum, test := range tests {
