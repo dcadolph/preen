@@ -546,3 +546,86 @@ func TestFixupCommandNothingToDo(t *testing.T) {
 		t.Errorf("output:\n%s", out)
 	}
 }
+
+// TestGeneratedOutputIsReportedNotCommitted checks the end to end behavior for
+// the defect that started this work: a bytecode cache git reports as untracked
+// must be named in the plan with the reason, and must not reach a commit.
+func TestGeneratedOutputIsReportedNotCommitted(t *testing.T) {
+	t.Parallel()
+	c := newCLI(t)
+	c.write("plugins/runner.py", "def run():\n    return 1\n")
+	c.write("plugins/__pycache__/runner.cpython-313.pyc", "\x00compiled\n")
+
+	code, out, err := c.run("y\n")
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if code != CodeOK {
+		t.Errorf("code = %d, want %d", code, CodeOK)
+	}
+	for _, want := range []string{"Held back as generated output", "Python bytecode cache", ".gitignore"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output does not mention %q:\n%s", want, out)
+		}
+	}
+	if recorded := c.git("log", "--name-only", "--format="); strings.Contains(recorded, "__pycache__") {
+		t.Errorf("the bytecode cache was committed:\n%s", recorded)
+	}
+	status := c.git("status", "--porcelain=v1", "--untracked-files=all")
+	if !strings.Contains(status, "?? plugins/__pycache__/runner.cpython-313.pyc") {
+		t.Errorf("the held path did not stay in the working tree:\n%s", status)
+	}
+}
+
+// TestGeneratedOverridesReachTheRun checks that both overrides get through the
+// command line, since a repository that vendors one of these paths has to be
+// able to commit it.
+func TestGeneratedOverridesReachTheRun(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		Name     string
+		Config   string
+		Args     []string
+		WantHeld bool
+	}{{ // Test 0: Without consent the cache is held back.
+		Name:     "default",
+		Args:     []string{"--dry-run"},
+		WantHeld: true,
+	}, { // Test 1: The flag commits it.
+		Name:     "flag",
+		Args:     []string{"--dry-run", "--allow-generated"},
+		WantHeld: false,
+	}, { // Test 2: The config file grants the same consent.
+		Name:     "config",
+		Config:   "[generated]\nallow-all = true\n",
+		Args:     []string{"--dry-run"},
+		WantHeld: false,
+	}, { // Test 3: The config exempts one path and holds the rest.
+		Name:     "config allow list",
+		Config:   "[generated]\nallow = [\"plugins/__pycache__/\"]\n",
+		Args:     []string{"--dry-run"},
+		WantHeld: false,
+	}}
+
+	for testNum, test := range tests {
+		t.Run(fmt.Sprintf("test %d %s", testNum, test.Name), func(t *testing.T) {
+			t.Parallel()
+			c := newCLI(t)
+			if test.Config != "" {
+				c.write(".preen.toml", test.Config)
+			}
+			c.write("plugins/runner.py", "def run():\n    return 1\n")
+			c.write("plugins/__pycache__/runner.cpython-313.pyc", "\x00compiled\n")
+
+			_, out, err := c.run("", test.Args...)
+			if err != nil {
+				t.Fatalf("run: %v", err)
+			}
+			held := strings.Contains(out, "Held back as generated output")
+			if held != test.WantHeld {
+				t.Errorf("held = %v, want %v, output:\n%s", held, test.WantHeld, out)
+			}
+		})
+	}
+}

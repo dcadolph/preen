@@ -59,15 +59,19 @@ func (e *Engine) PlanFixup(ctx context.Context, opts Options) (*FixupPlan, error
 	if len(changes) == 0 {
 		return nil, ErrNothingToDo
 	}
+	committable, held := holdGenerated(changes, opts.generatedMatcher())
+	if len(committable) == 0 {
+		return nil, generatedOnly(held)
+	}
 
-	built := &plan.Plan{Base: base, Covers: changes}
+	built := &plan.Plan{Base: base, Covers: changes, Held: held}
 	check, err := e.Repo.CheckMerges(ctx, base)
 	if err != nil {
 		return nil, err
 	}
 	built.MergeSummary = check.Summary()
 
-	fixups, leftover, err := e.routeChanges(ctx, base, changes)
+	fixups, leftover, err := e.routeChanges(ctx, base, committable)
 	if err != nil {
 		return nil, err
 	}

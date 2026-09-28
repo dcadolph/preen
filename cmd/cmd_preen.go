@@ -39,12 +39,15 @@ func runPreen(ctx context.Context, env *environment, args []string) (int, error)
 
 	engine := run.New(repository)
 	engine.Out = env.Out
+	// The grouper writes subjects, so it is told the length they have to fit.
+	builtIn := group.Heuristic{RespectStaged: true, MaxSubject: subjectBudget(opts.Style)}
+	engine.Grouper = builtIn
 	if settings.Grouper != "" {
 		// A grouper that fails or answers with something unusable falls back to
 		// the built-in rules rather than taking the run down with it.
 		engine.Grouper = group.Chain(
 			group.Command{Name: settings.Grouper, Dir: repository.Root()},
-			group.NewHeuristic(),
+			builtIn,
 		)
 	}
 	if opts.Fixup {
@@ -53,7 +56,12 @@ func runPreen(ctx context.Context, env *environment, args []string) (int, error)
 
 	built, err := engine.Plan(ctx, opts)
 	if err != nil {
-		if errors.Is(err, run.ErrNothingToDo) {
+		switch {
+		case errors.Is(err, run.ErrAllGenerated):
+			env.printf("Nothing to preen: every change is generated output.\n%v\n", err)
+			env.println("Add those paths to .gitignore, or rerun with --allow-generated.")
+			return CodeNothingToDo, nil
+		case errors.Is(err, run.ErrNothingToDo):
 			env.println("Nothing to preen: the tree is clean and no commits need redoing.")
 			return CodeNothingToDo, nil
 		}
@@ -94,7 +102,12 @@ func runFixup(ctx context.Context, env *environment, engine *run.Engine,
 	opts run.Options, settings promptSettings) (int, error) {
 	built, err := engine.PlanFixup(ctx, opts)
 	if err != nil {
-		if errors.Is(err, run.ErrNothingToDo) {
+		switch {
+		case errors.Is(err, run.ErrAllGenerated):
+			env.printf("Nothing to fold in: every change is generated output.\n%v\n", err)
+			env.println("Add those paths to .gitignore, or rerun with --allow-generated.")
+			return CodeNothingToDo, nil
+		case errors.Is(err, run.ErrNothingToDo):
 			env.println("Nothing to fold in: no dirty changes over unpushed commits.")
 			return CodeNothingToDo, nil
 		}
@@ -171,6 +184,8 @@ func parseRunFlags(env *environment, args []string) (opts run.Options, settings 
 	fs.BoolVar(&opts.AllowHookRewrites, "allow-hook-rewrites", false,
 		"accept content changes a commit hook made to files the run committed")
 	fs.BoolVar(&opts.Sweep, "sweep", false, "report debug prints and other leftovers in the diff")
+	fs.BoolVar(&opts.AllowGenerated, "allow-generated", false,
+		"commit generated output instead of holding it back")
 	fs.BoolVar(&settings.DryRun, "dry-run", false, "show the plan and stop")
 	fs.BoolVar(&settings.Yes, "yes", false, "skip the approval prompt")
 	showVersion := fs.Bool("version", false, "print the version and exit")

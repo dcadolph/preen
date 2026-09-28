@@ -85,6 +85,22 @@ func (c Commit) Paths() []string {
 	return paths
 }
 
+// Held is a change preen refused to plan because its path holds generated
+// output, recorded with the reason so the plan can say why.
+//
+// A held change stays in the working tree exactly as it was, and it still
+// counts toward the coverage check, so holding one back cannot quietly drop
+// work: the plan accounts for it, it is shown before approval, and the content
+// hash the run conserves still includes it.
+type Held struct {
+	// Part is the change being left uncommitted.
+	Part Part
+	// Pattern is the rule that matched the path.
+	Pattern string
+	// Why names what the path holds, so the report explains the refusal.
+	Why string
+}
+
 // Plan is the full intent of a run.
 type Plan struct {
 	// Base is the commit the run resets to, empty for a working-tree-only run.
@@ -99,6 +115,9 @@ type Plan struct {
 	Commits []Commit
 	// Leftover are changes deliberately left uncommitted.
 	Leftover []Part
+	// Held are changes left uncommitted because they hold generated output,
+	// each with the pattern that caught it.
+	Held []Held
 	// Push is the exact force push a published rewrite will run, empty for any
 	// run that does not publish.
 	Push string
@@ -120,11 +139,13 @@ func (p Plan) Revalidate() error { return p.Validate(p.Covers) }
 func (p Plan) Resets() bool { return p.Base != "" }
 
 // Validate checks that the plan is internally coherent and covers exactly the
-// supplied set of changes: every change lands somewhere, nothing lands twice,
-// and no commit is empty.
+// supplied set of changes: every change lands in a commit, a leftover, or a
+// held path, nothing lands twice, and no commit is empty.
 //
 // This is the check that keeps a grouping mistake from silently dropping work,
-// and it runs before the repository is touched.
+// and it runs before the repository is touched. Held paths are counted here for
+// that reason: a path preen declines to commit is still a path it has to
+// account for out loud.
 func (p Plan) Validate(changes []repo.Change) error {
 	if len(p.Commits) == 0 {
 		return fmt.Errorf("%w: no commits planned", ErrInvalid)
@@ -145,6 +166,11 @@ func (p Plan) Validate(changes []repo.Change) error {
 	}
 	for _, part := range p.Leftover {
 		if err := recordPart(seen, part); err != nil {
+			return err
+		}
+	}
+	for _, held := range p.Held {
+		if err := recordPart(seen, held.Part); err != nil {
 			return err
 		}
 	}

@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+
 	"github.com/dcadolph/preen/style"
 )
 
@@ -90,6 +93,30 @@ branches = ["develop", "release/*"]
 	}
 	if len(cfg.Protect.Branches) != 2 {
 		t.Errorf("protected branches = %v, want two entries", cfg.Protect.Branches)
+	}
+}
+
+// TestLoadGeneratedSection checks that a repository can extend and exempt the
+// never-commit patterns, which is how a project that vendors one of those
+// directories on purpose keeps committing it.
+func TestLoadGeneratedSection(t *testing.T) {
+	t.Parallel()
+	root := writeConfig(t, `
+[generated]
+allow-all = false
+patterns = ["*.snap"]
+allow = ["third_party/node_modules"]
+`)
+	cfg, err := Load(root)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	want := GeneratedSection{
+		Patterns: []string{"*.snap"},
+		Allow:    []string{"third_party/node_modules"},
+	}
+	if diff := cmp.Diff(want, cfg.Generated, cmpopts.EquateEmpty()); diff != "" {
+		t.Errorf("generated section mismatch (-want +got):\n%s", diff)
 	}
 }
 
