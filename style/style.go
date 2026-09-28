@@ -216,7 +216,7 @@ func conventional(subject string) string {
 		kind = "feat"
 	case strings.HasPrefix(subject, "Fix"):
 		kind = "fix"
-	case strings.HasPrefix(subject, "Remove"):
+	case strings.HasPrefix(subject, "Remove"), strings.HasPrefix(subject, "Move"):
 		kind = "refactor"
 	case strings.Contains(strings.ToLower(subject), "document"):
 		kind = "docs"
