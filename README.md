@@ -5,7 +5,10 @@
 [![Latest release](https://img.shields.io/github/v/release/dcadolph/preen)](https://github.com/dcadolph/preen/releases/latest)
 [![License](https://img.shields.io/github/license/dcadolph/preen)](LICENSE)
 
-Clean up your commit history, automatically.
+Turn a messy working tree into clean, atomic commits. See the plan before
+anything moves.
+
+`git` and nothing else. No model, no API key, no network.
 
 ![preen demo](assets/demo.gif)
 
@@ -19,6 +22,13 @@ changed, groups it into coherent commits, writes a subject for each, orders them
 so dependencies land first, and shows you the plan first. Nothing moves until
 you approve.
 
+Rewriting history is not a thing to take on faith, so preen does not ask you to.
+Before a run it hashes your `HEAD` plus every staged, unstaged, and untracked
+change, and after the run it hashes the same thing again. The two must match
+exactly. A single differing byte rolls the run back to the recovery branch it
+made before it started. Every run leaves a `preen-backup/<timestamp>` branch and
+`preen restore` puts you back. [How that works](#it-proves-it-did-not-lose-your-work).
+
 The built-in subjects say where, not why: `Add api`, `Update dependencies`. For
 messages that explain intent, hand grouping to any program you like with
 `--grouper`, a model included, and reword anything at the approval prompt.
@@ -30,16 +40,18 @@ hand-staging.
 ## It proves it did not lose your work
 
 preen only reshapes history, never content, and it enforces that rather than
-promising it.
+promising it. The check is a content hash of everything you have, not a diff of
+what preen thinks it touched, so it holds whether or not preen understood your
+tree correctly.
 
-Before a run it hashes a tree holding your `HEAD` plus every staged, unstaged,
-and untracked change. After the run it hashes the same thing again. The two must
-match exactly. If a single byte differs, the run rolls itself back to the
-recovery branch it made before it started and tells you which paths diverged.
+The tree it hashes covers `HEAD` plus every staged, unstaged, and untracked
+change. If the before and after hashes differ by a byte, the run rolls back and
+names the paths that diverged rather than leaving you to find them.
 
-Every run leaves a `preen-backup/<timestamp>` branch, and `preen restore` puts
-you back where you were, with your work returned to the working tree exactly as
-it was.
+Every run leaves a `preen-backup/<timestamp>` branch whether or not anything
+went wrong. `preen restore` puts you back where you were, with your work
+returned to the working tree in the same state it was in, staged files staged
+and untracked files untracked.
 
 ## Install
 
