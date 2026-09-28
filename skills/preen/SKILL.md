@@ -9,7 +9,8 @@ description: >-
   .preen.toml. Run options: --scope preens only part of the tree, --gate runs
   a check after each commit, --dry-run plans and stops, --fixup folds dirty
   changes into the unpushed commits that introduced them, --yes skips the
-  approval prompt, --pushed grants the explicit ask a pushed rewrite requires.
+  approval prompt, --pushed grants the explicit ask a pushed rewrite requires,
+  --allow-generated commits build output preen would otherwise hold back.
   Triggers: "preen", "split my diff", "clean up my commit history", "fix
   my last commits", "reword these commits", "resplit my commits", "fold my
   changes into the right commits".
@@ -54,6 +55,8 @@ reword, drop, and reorder interactively.
 - Only part of the tree: `--scope <path>`, repeatable.
 - Run tests after each commit: `--gate "<cmd>"`.
 - Report debug prints and leftovers: `--sweep`.
+- Commit generated output preen held back: `--allow-generated`, and only when
+  the user says that path belongs in the repository.
 - Rewrite pushed commits: only when the user explicitly asked, in words or
   with `--pushed`. Pass `--pushed`, and `--pushed-base <rev>` when they named
   a range. Every other guardrail stays with the binary.
@@ -62,6 +65,25 @@ Message style flags (`--conventional`, `--prefix`, `--max-subject`,
 `--no-emdash`, `--no-semicolon`, `--punctuation`, `--body`, and the rest) pass
 through as the user asks. A `.preen.toml` at the repository root sets
 defaults; flags beat the file.
+
+## Generated output
+
+preen refuses to commit untracked paths that hold generated output rather than
+work: `__pycache__/`, `*.pyc`, `node_modules/`, `.DS_Store`, coverage reports,
+editor swap files, and the like. They appear in the plan under "Held back as
+generated output", with the pattern that caught each one, and stay in the
+working tree untouched.
+
+Relay that section to the user, since it is the part of the plan that needs a
+decision. The right fix is almost always a `.gitignore` entry, which is theirs
+to make: preen does not write that file, because editing it mid-run would move
+the content hash the conservation check compares. Do not add it yourself
+without being asked.
+
+If the path genuinely belongs in the repository, `--allow-generated` commits
+everything held back, and a `[generated] allow = [...]` entry in `.preen.toml`
+exempts one path for good. A tree holding nothing but generated output exits
+with the nothing-to-do code (4) and says so.
 
 ## Exit codes
 

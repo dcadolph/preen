@@ -86,5 +86,6 @@ func clonePlan(src *plan.Plan) *plan.Plan {
 		dst.Commits[i].Parts = append([]plan.Part(nil), commit.Parts...)
 	}
 	dst.Leftover = append([]plan.Part(nil), src.Leftover...)
+	dst.Held = append([]plan.Held(nil), src.Held...)
 	return &dst
 }

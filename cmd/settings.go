@@ -36,8 +36,36 @@ func applyConfig(opts *run.Options, cfg config.Config, args []string) {
 	// Protected branches always come from the repository, never from a flag, so
 	// a project can declare them once and no invocation can quietly drop them.
 	opts.Protected = cfg.Protect.Branches
+	if !flagGiven(args, "allow-generated") && cfg.Generated.AllowAll {
+		opts.AllowGenerated = true
+	}
+	opts.GeneratedPatterns = cfg.Generated.Patterns
+	opts.GeneratedAllow = cfg.Generated.Allow
 	opts.Style = mergeStyle(fileStyle, opts.Style, args)
 }
+
+// subjectBudget is the length the built-in grouper aims its subjects at: the
+// effective cap, less the room the style layer will take for a prefix.
+//
+// Working the prefix in here rather than truncating later is what keeps a
+// prefixed subject a whole phrase instead of a severed one.
+func subjectBudget(s style.Style) int {
+	budget := s.MaxSubject
+	if budget <= 0 {
+		budget = style.DefaultMaxSubject
+	}
+	if s.Prefix != "" {
+		budget -= len([]rune(s.Prefix)) + 1
+	}
+	if budget < minSubjectBudget {
+		return minSubjectBudget
+	}
+	return budget
+}
+
+// minSubjectBudget is the shortest subject budget worth aiming at. Below this a
+// subject cannot say anything, so the style layer's truncation takes over.
+const minSubjectBudget = 16
 
 // mergeStyle layers the invocation's style over the file's, keeping a file
 // value wherever the invocation did not name that flag.

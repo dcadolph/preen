@@ -2,10 +2,13 @@ package run
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
 	"path"
 	"strings"
 
+	"github.com/dcadolph/preen/generated"
+	"github.com/dcadolph/preen/plan"
 	"github.com/dcadolph/preen/repo"
 )
 
@@ -18,6 +21,43 @@ func (shellGate) Check(ctx context.Context, dir, command string) ([]byte, error)
 	cmd := exec.CommandContext(ctx, "sh", "-c", command)
 	cmd.Dir = dir
 	return cmd.CombinedOutput()
+}
+
+// holdGenerated splits surveyed changes into what a run may commit and what it
+// holds back because the path holds generated output.
+//
+// Only an untracked path is ever held. A path git already tracks was committed
+// deliberately at some point, and overruling that would break the repository
+// that vendors one of these directories on purpose. Holding a path back does
+// not drop it: it becomes a declared part of the plan, it is shown before
+// approval, and it stays in the working tree, so the content the run conserves
+// is unchanged either way.
+func holdGenerated(changes []repo.Change, matcher generated.Matcher) ([]repo.Change, []plan.Held) {
+	kept := make([]repo.Change, 0, len(changes))
+	var held []plan.Held
+	for _, change := range changes {
+		rule, matched := matcher.Match(change.Path)
+		if !matched || change.Kind != repo.KindUntracked {
+			kept = append(kept, change)
+			continue
+		}
+		held = append(held, plan.Held{
+			Part:    plan.Part{Path: change.Path, From: change.From, Kind: change.Kind},
+			Pattern: rule.Pattern,
+			Why:     rule.Why,
+		})
+	}
+	return kept, held
+}
+
+// generatedOnly reports a run with nothing left to commit once generated output
+// was held back, which needs a .gitignore entry rather than a commit.
+func generatedOnly(held []plan.Held) error {
+	paths := make([]string, 0, len(held))
+	for _, entry := range held {
+		paths = append(paths, entry.Part.Path)
+	}
+	return fmt.Errorf("%w: %s", ErrAllGenerated, strings.Join(paths, ", "))
 }
 
 // mergeChanges combines the working tree status with the paths an absorb run

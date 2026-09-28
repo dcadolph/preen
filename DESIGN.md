@@ -16,6 +16,7 @@ The packages divide along one line: mechanics and judgment.
 | `repo`   | A typed layer over git, behind a one-method `Runner` interface. |
 | `plan`   | The intent of a run as data: renderable, editable, validatable. |
 | `group`  | The one judgment call, behind a `Grouper` interface. |
+| `generated` | Paths holding generated output, which a commit never carries. |
 | `style`  | Commit message conventions, applied and verified. |
 | `sweep`  | Debris detection. Reports only, never removes. |
 | `config` | `.preen.toml`, the per-repository defaults. |
@@ -32,6 +33,8 @@ matters more than avoiding a process boundary.
   absorbs unpushed commits back into the tree to be redone.
 - Groups the changes into self-contained commits, ordered so dependencies land
   first. The rules group by structure; semantic splitting needs a grouper.
+- Holds untracked generated output back from the plan, named with the pattern
+  that caught it. Overridable with `--allow-generated` or `[generated]`.
 - Shows a plan and changes nothing until it is approved. The prompt accepts
   merge, split, move, reword, drop, and reorder.
 - Stages each group precisely, including a subset of one file's hunks when an
@@ -53,8 +56,10 @@ against real repositories rather than a mock.
    hook reformatting files the run committed, and only when the caller passed
    `--allow-hook-rewrites`, which is then reported.
 2. **A plan accounts for the tree exactly once.** Every change lands in a
-   commit or a declared leftover, nothing lands twice, no commit is empty. An
-   edit that breaks this is refused and the previous plan stands.
+   commit, a declared leftover, or a declared held path, nothing lands twice,
+   no commit is empty. An edit that breaks this is refused and the previous
+   plan stands. Generated output is held rather than dropped for this reason:
+   a path preen declines to commit is still one it accounts for out loud.
 3. **Published work is not redone by accident.** A merge whose second parent is
    reachable from any remote moves the base forward instead of being flattened,
    and redoing a pushed commit requires `--pushed`.
@@ -67,7 +72,9 @@ against real repositories rather than a mock.
    index move, the working tree does not. `--hard` and `--keep` both delete
    files the undone commits added, which is a data-loss bug, not a preference.
 7. **Nothing is deleted on a guess.** The sweep reports debris and never
-   removes it.
+   removes it, and holding generated output back leaves the file untouched in
+   the working tree. preen never edits `.gitignore` either: doing so mid-run
+   would move the content hash the conservation check compares.
 
 ## Tests
 
@@ -93,6 +100,12 @@ Tag `vX.Y.Z`; the release workflow cross-builds and attaches archives. Keep
   wrong answer rewrites the wrong commit, so it stays coarse deliberately.
 - The grouper contract is JSON over stdin and stdout. No reference grouper
   ships with preen.
+- Two unrelated edits to two files in one package still share a commit. Telling
+  them apart means reading the diff for meaning, which the deterministic rules
+  will not do; the prompt's `split` and a `--grouper` cover it.
+- A held path cannot be recovered at the approval prompt. `drop` moves a path
+  out of the plan but nothing moves one back in, so the override is
+  `--allow-generated` or a `[generated] allow` entry.
 
 ## External artifacts
 

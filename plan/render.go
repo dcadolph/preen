@@ -45,6 +45,14 @@ func (p Plan) Render(w io.Writer) error {
 		b.WriteByte('\n')
 	}
 
+	if len(p.Held) > 0 {
+		fmt.Fprintf(&b, "Held back as generated output (%d), left uncommitted:\n", len(p.Held))
+		for _, held := range p.Held {
+			fmt.Fprintf(&b, "     %s  [%s: %s]\n", held.Part, held.Pattern, held.Why)
+		}
+		b.WriteString("   Add them to .gitignore, or rerun with --allow-generated to commit them.\n\n")
+	}
+
 	if len(p.Leftover) > 0 {
 		fmt.Fprintf(&b, "Left uncommitted (%d):\n", len(p.Leftover))
 		for _, part := range p.Leftover {

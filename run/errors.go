@@ -26,4 +26,7 @@ var (
 	// ErrFixupTarget reports a change no unpushed commit introduced, so there is
 	// nothing to fold it into.
 	ErrFixupTarget = errors.New("no unpushed commit introduced these lines")
+	// ErrAllGenerated reports a tree whose every change is generated output, so
+	// there is nothing worth committing.
+	ErrAllGenerated = errors.New("every change is generated output")
 )

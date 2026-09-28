@@ -30,7 +30,9 @@ exactly. A single differing byte rolls the run back to the recovery branch it
 made before it started. Every run leaves a `preen-backup/<timestamp>` branch and
 `preen restore` puts you back. [How that works](#it-proves-it-did-not-lose-your-work).
 
-The built-in subjects say where, not why: `Add api`, `Update dependencies`. For
+The built-in subjects say what changed, not why: `Add cmd/parser.go and its
+test`, `Update dependencies`. Every one of them is built from the file list and
+nothing else, so a subject is a claim the commit can be checked against. For
 messages that explain intent, hand grouping to any program you like with
 `--grouper`, a model included, and reword anything at the approval prompt.
 
@@ -79,15 +81,19 @@ Planned commits (4):
 1. Update dependencies
      go.mod
 
-2. Add api
+2. Add api/server.go and its test
      api/server.go
      api/server_test.go
 
-3. Add store
+3. Add store/db.go
      store/db.go
 
-4. Add guide.md
+4. Update docs/guide.md
      docs/guide.md
+
+Held back as generated output (1), left uncommitted:
+     api/__pycache__/server.cpython-313.pyc  [__pycache__/: Python bytecode cache]
+   Add them to .gitignore, or rerun with --allow-generated to commit them.
 
 Apply this plan? 4 commits [y/n, or ? for edits]:
 ```
@@ -115,6 +121,10 @@ cannot walk you into losing a change.
   dependencies, CI, documentation, and configuration, so each commit stands on
   its own. Structure is what the rules can see; a `--grouper` program judges
   intent. Add `--gate` to verify each commit builds and passes.
+- Refuses to commit generated output. A `__pycache__` directory your `.gitignore`
+  never listed is untracked as far as git is concerned, and a tool that produces
+  commits should not help you record a bytecode cache as work. It is named in the
+  plan with the reason and left where it was. `--allow-generated` commits it.
 - Absorbs a run of unpushed commits back into the tree and redoes them clean
   with `--absorb`, no manual reset.
 - Folds dirty changes into the unpushed commits that introduced them with
@@ -140,12 +150,32 @@ It never invents changes and never touches a commit you did not ask it to.
 
 The grouping is deterministic and needs no model. preen separates dependency
 manifests, CI configuration, documentation, and configuration from source, then
-groups source by package, keeps a test file with the code it exercises, keeps
-rename pairs together, and treats anything you staged by hand as a boundary you
-drew deliberately. Dependencies are recorded first and documentation last.
+groups source by package and treats anything you staged by hand as a boundary
+you drew deliberately. Dependencies are recorded first and documentation last.
 
-Because a fixed rule cannot know whether two hunks in one file are one idea or
-two, the built-in grouper never splits a file.
+Inside a package it works in units rather than files. A unit is a source file
+plus the tests that exercise it, which is the one pairing a file name states
+outright: `parser_test.go` belongs with `parser.go`, and `test_runner.py` with
+`runner.py`. From there:
+
+- New code is separated from changes to code that was already there, so a new
+  file and its test do not ride along with two unrelated fixes.
+- Tests for code this run did not otherwise touch become their own commit, named
+  for what they test, and land after the code they depend on.
+- A file that moved between directories keeps both halves in one commit, so it
+  reads as a move rather than a deletion and an unrelated addition.
+
+Subjects are written from that same evidence and nothing else: the files, their
+directory, whether each is new or changed, and whether a test came with its
+source. That gives `Add cmd/parser.go and its test` and `Update token.go and
+tool.go in cmd` instead of `Update cmd`. Where a subject would run past
+`--max-subject`, it gives up detail rather than being cut off, falling back
+through the file name to the package name.
+
+Two unrelated edits to two files in the same package still share a commit.
+Telling them apart means reading the diff for meaning, which a fixed rule cannot
+do without guessing. For the same reason the built-in grouper never splits a
+file: it cannot know whether two hunks are one idea or two.
 
 When you want that judgment, hand grouping to a program:
 
@@ -164,6 +194,45 @@ than trusting it.
 
 Every guardrail is the same either way. The grouper chooses *what goes where*
 and nothing else.
+
+## Generated output
+
+A `__pycache__` directory your `.gitignore` never listed shows up in `git
+status` as untracked, which is the same thing a new source file looks like. A
+tool whose whole job is producing clean commits should not turn that into `Add
+__pycache__`.
+
+So preen recognizes the paths that hold generated output rather than work:
+bytecode caches, installed dependencies, coverage reports, and the files editors
+and operating systems leave lying around. An untracked path that matches one is
+held back from the plan, named with the pattern that caught it and what it
+holds, and left in your working tree exactly as it was.
+
+Held back is not dropped. The plan still accounts for the path, you see it
+before you approve anything, and the content hash preen conserves across the run
+still covers it. Nothing is deleted and nothing is written to your `.gitignore`:
+editing that file mid-run would change the very content the conservation check
+exists to prove was unchanged.
+
+Only untracked paths are ever held. A path git already tracks was committed
+deliberately at some point, and preen does not second-guess that.
+
+Override it where a project vendors one of these directories on purpose:
+
+```
+preen --allow-generated
+```
+
+```toml
+[generated]
+allow-all = false                        # commit generated output like anything else
+patterns = ["*.snap"]                    # hold these back too
+allow = ["third_party/node_modules"]     # commit these despite the patterns
+```
+
+A pattern with a slash is a path from the repository root and covers everything
+under it. A bare name ending in a slash is a directory, matched wherever it
+appears. Anything else is a glob on the file name.
 
 ## Message style
 
@@ -198,6 +267,11 @@ allow-no-verify = false
 
 [protect]
 branches = ["develop", "release/*"]
+
+[generated]
+allow-all = false
+patterns = ["*.snap"]
+allow = ["third_party/node_modules"]
 ```
 
 Flags beat the config file, which beats the defaults. Every generated message is
