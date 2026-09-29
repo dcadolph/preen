@@ -137,6 +137,8 @@ cannot walk you into losing a change.
 - Runs your build or test gate after each commit with `--gate`, rolling the whole
   run back on failure.
 - Preens only part of the tree with `--scope`, leaving the rest dirty.
+- Leaves named files out of every commit with `--leave`, still accounted for in
+  the plan.
 - Plans without acting with `--dry-run`, and skips the approval prompt with
   `--yes` for scripted runs.
 - Reports debug prints, scratch markers, commented-out code, and skipped tests
@@ -191,6 +193,31 @@ repository: a grouper only answers, and preen verifies every path and hunk index
 against the real tree before acting. If it fails, returns nothing, or names
 something that is not there, the run falls back to the built-in rules rather
 than trusting it.
+
+### When an agent made the changes
+
+A coding agent that just spent an hour in your tree knows why it touched every
+hunk, which no rule and no model reading the diff cold can recover. So it can
+answer the grouping request itself:
+
+```
+preen request > /tmp/request.json
+preen --grouping /tmp/answer.json --leave NOTES.md --dry-run
+```
+
+`preen request` prints the same request a `--grouper` program reads, plus the
+content hash of the tree, and changes nothing. Write the request and the answer
+outside the repository: a file written inside it is a change to the tree they
+describe. The answer is the same JSON a
+grouper writes, carrying that hash back. preen refuses an answer whose hash does
+not match the tree, since hunk indexes read from an earlier tree may name
+different hunks now. Unlike `--grouper`, a bad answer is an error rather than a
+fallback, because whoever wrote it is waiting to fix it. `--leave` keeps the
+agent's scratch files out of every commit while the plan still accounts for
+them.
+
+The Claude Code skill runs this loop on its own when Claude made the changes in
+the same session.
 
 Every guardrail is the same either way. The grouper chooses *what goes where*
 and nothing else.
@@ -308,6 +335,7 @@ the config file cannot grant it.
 preen                  Group the working tree into commits.
 preen restore [ref]    Undo a run. Defaults to the most recent backup.
 preen backups          List recovery refs. --prune deletes the safe ones.
+preen request          Print the grouping request, for an agent to answer.
 ```
 
 Exit codes are distinct, so a script can tell a rolled-back run (6, 7) from a

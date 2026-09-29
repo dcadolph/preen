@@ -16,6 +16,10 @@ import (
 // stdin. It carries the changes and their hunks, never the repository itself,
 // so a grouper cannot act on anything: it only answers.
 type Request struct {
+	// Tree is the content hash of the tree the request describes. An answer
+	// given to --grouping must carry it back, which proves the hunk indexes it
+	// names were read from this tree and not an earlier one.
+	Tree string `json:"tree"`
 	// Files are the changed files and the hunks available to divide.
 	Files []RequestFile `json:"files"`
 }
@@ -47,6 +51,9 @@ type RequestHunk struct {
 
 // Response is what a command grouper returns on stdout.
 type Response struct {
+	// Tree echoes the request's tree. A command grouper may omit it, since it
+	// answers the request it was just handed; an answer file may not.
+	Tree string `json:"tree,omitempty"`
 	// Commits are the proposed commits, in the order they should be recorded.
 	Commits []ResponseCommit `json:"commits"`
 }
@@ -92,7 +99,7 @@ func (c Command) Group(ctx context.Context, in Input) ([]plan.Commit, error) {
 	if c.Name == "" {
 		return nil, ErrNoCommand
 	}
-	payload, err := json.Marshal(buildRequest(in))
+	payload, err := json.Marshal(NewRequest(in))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrRequest, err)
 	}
@@ -105,16 +112,16 @@ func (c Command) Group(ctx context.Context, in Input) ([]plan.Commit, error) {
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("%w: %s: %w: %s", ErrCommand, c.Name, err, strings.TrimSpace(stderr.String()))
 	}
-	var response Response
-	if err := json.Unmarshal(extractJSON(stdout.Bytes()), &response); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrResponse, err)
+	response, err := decode(stdout.Bytes())
+	if err != nil {
+		return nil, err
 	}
 	return convert(response, in)
 }
 
-// buildRequest turns the survey into the grouper's input.
-func buildRequest(in Input) Request {
-	request := Request{Files: make([]RequestFile, 0, len(in.Changes))}
+// NewRequest turns the survey into the grouper's input.
+func NewRequest(in Input) Request {
+	request := Request{Tree: in.Tree, Files: make([]RequestFile, 0, len(in.Changes))}
 	for _, change := range in.Changes {
 		file := RequestFile{
 			Path:   change.Path,
@@ -134,6 +141,15 @@ func buildRequest(in Input) Request {
 		request.Files = append(request.Files, file)
 	}
 	return request
+}
+
+// decode parses a grouper's answer.
+func decode(out []byte) (Response, error) {
+	var response Response
+	if err := json.Unmarshal(extractJSON(out), &response); err != nil {
+		return Response{}, fmt.Errorf("%w: %w", ErrResponse, err)
+	}
+	return response, nil
 }
 
 // extractJSON pulls the JSON object out of a program's stdout, tolerating the

@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -115,6 +116,18 @@ func (p *Plan) DropPath(path string) error {
 	// nothing will be staged for it at all.
 	p.Leftover = append(p.Leftover, Part{Path: path, From: dropped[0].From, Kind: dropped[0].Kind})
 	p.dropEmpty()
+	return nil
+}
+
+// LeavePath records a change as deliberately left uncommitted whether or not a
+// commit holds it yet. DropPath alone cannot do that for a change no commit
+// took, which is what a grouping answer that leaves a scratch file out
+// entirely produces.
+func (p *Plan) LeavePath(change Part) error {
+	if err := p.DropPath(change.Path); !errors.Is(err, ErrNoSuchPath) {
+		return err
+	}
+	p.Leftover = append(p.Leftover, Part{Path: change.Path, From: change.From, Kind: change.Kind})
 	return nil
 }
 

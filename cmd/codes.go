@@ -13,7 +13,8 @@ const (
 	CodeRepoState = 3
 	// CodeNothingToDo means the tree was clean and nothing needed redoing.
 	CodeNothingToDo = 4
-	// CodeInvalidPlan means the plan did not account for the tree exactly once.
+	// CodeInvalidPlan means the plan did not account for the tree exactly once,
+	// or a --grouping answer was stale or named something not in the tree.
 	CodeInvalidPlan = 5
 	// CodeGateFailed means the gate command failed and the run was rolled back.
 	CodeGateFailed = 6

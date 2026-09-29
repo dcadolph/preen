@@ -13,4 +13,9 @@ var (
 	// ErrResponse reports an answer preen cannot trust: unparsable, empty, or
 	// naming a path or hunk that is not in the tree.
 	ErrResponse = errors.New("unusable grouper response")
+	// ErrStale reports an answer written for a tree other than the one being
+	// preened.
+	ErrStale = errors.New("answer does not match this tree")
+	// ErrAnswer reports an answer file that could not be read.
+	ErrAnswer = errors.New("cannot read the grouping answer")
 )

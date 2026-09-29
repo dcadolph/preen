@@ -102,7 +102,12 @@ Tag `vX.Y.Z`; the release workflow cross-builds and attaches archives. Keep
   ships with preen.
 - Two unrelated edits to two files in one package still share a commit. Telling
   them apart means reading the diff for meaning, which the deterministic rules
-  will not do; the prompt's `split` and a `--grouper` cover it.
+  will not do; the prompt's `split`, a `--grouper`, and an agent's own answer
+  through `preen request` and `--grouping` cover it.
+- A `--grouping` answer proves which tree it answers by the content hash alone.
+  A request or answer written inside the repository changes that hash, so a
+  path inside it is refused outright, but a request redirected there is only
+  caught as a stale answer.
 - A held path cannot be recovered at the approval prompt. `drop` moves a path
   out of the plan but nothing moves one back in, so the override is
   `--allow-generated` or a `[generated] allow` entry.

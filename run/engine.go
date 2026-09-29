@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -28,6 +29,9 @@ type Options struct {
 	// Scope limits the run to paths matching these pathspecs. Everything else
 	// stays uncommitted and untouched.
 	Scope []string
+	// Leave names changes to leave uncommitted, as a drop at the approval
+	// prompt does. Unlike Scope, each one is still accounted for in the plan.
+	Leave []string
 	// Gate is a command run after each commit. A failure stops the run.
 	Gate string
 	// Absorb brings unpushed commits back into the tree to be redone.
@@ -155,60 +159,11 @@ type Result struct {
 
 // Plan surveys the repository and builds a plan without changing anything.
 func (e *Engine) Plan(ctx context.Context, opts Options) (*plan.Plan, error) {
-	if err := e.Repo.CheckReady(ctx); err != nil {
-		return nil, err
-	}
-	built := &plan.Plan{}
-
-	if opts.Absorb || opts.Pushed {
-		base, err := e.rewriteBase(ctx, opts)
-		if err != nil {
-			return nil, err
-		}
-		check, err := e.Repo.CheckMerges(ctx, base)
-		if err != nil {
-			return nil, err
-		}
-		absorbed, err := e.Repo.Log(ctx, check.SafeBase+"..HEAD")
-		if err != nil {
-			return nil, err
-		}
-		if opts.Pushed {
-			if err := e.allowRewrite(ctx, opts); err != nil {
-				return nil, err
-			}
-			built.Push, err = e.pushPlan(ctx)
-			if err != nil {
-				return nil, err
-			}
-		} else if err := e.refusePushed(ctx, absorbed); err != nil {
-			return nil, err
-		}
-		built.Base = check.SafeBase
-		built.MergeSummary = check.Summary()
-		built.Absorbed = absorbed
-	}
-
-	changes, err := e.survey(ctx, opts, built.Base)
+	built, changes, in, err := e.prepare(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
-	if len(changes) == 0 && len(built.Absorbed) == 0 {
-		return nil, ErrNothingToDo
-	}
-	// Generated output is held back before the grouper ever sees it, so an
-	// external grouper cannot plan a commit for it either.
-	committable, held := holdGenerated(changes, opts.generatedMatcher())
-	built.Held = held
-	if len(committable) == 0 {
-		return nil, generatedOnly(held)
-	}
-
-	diffs, err := e.Repo.Diff(ctx, pathsOf(committable)...)
-	if err != nil {
-		return nil, err
-	}
-	commits, err := e.Grouper.Group(ctx, group.Input{Changes: committable, Diffs: diffs})
+	commits, err := e.Grouper.Group(ctx, in)
 	if err != nil {
 		return nil, fmt.Errorf("grouping failed: %w", err)
 	}
@@ -218,23 +173,120 @@ func (e *Engine) Plan(ctx context.Context, opts Options) (*plan.Plan, error) {
 	shapedStyle := opts.Style
 	shapedStyle.Punctuation = e.resolvePunctuation(ctx, opts.Style.Punctuation)
 	for i, commit := range commits {
-		shaped := shapedStyle.Apply(annotate(commit, diffs, opts))
+		shaped := shapedStyle.Apply(annotate(commit, in.Diffs, opts))
 		if err := shapedStyle.Verify(shaped); err != nil {
 			return nil, fmt.Errorf("commit %d: %w", i+1, err)
 		}
 		commits[i] = shaped
 	}
 	if opts.Sweep {
-		for _, finding := range e.sweepAll(diffs, committable) {
+		for _, finding := range e.sweepAll(in.Diffs, in.Changes) {
 			built.Debris = append(built.Debris, finding.String())
 		}
 	}
 	built.Commits = commits
 	built.Covers = changes
+	if err := leave(built, in.Changes, opts.Leave); err != nil {
+		return nil, err
+	}
 	if err := built.Revalidate(); err != nil {
 		return nil, err
 	}
 	return built, nil
+}
+
+// leave records each named change as uncommitted. A name that is not a change
+// preen would commit is refused, so a typo cannot pass for a decision.
+func leave(built *plan.Plan, changes []repo.Change, paths []string) error {
+	for _, path := range paths {
+		i := slices.IndexFunc(changes, func(c repo.Change) bool { return c.Path == path })
+		if i < 0 {
+			return fmt.Errorf("%w: --leave %s", plan.ErrNoSuchPath, path)
+		}
+		change := changes[i]
+		if err := built.LeavePath(plan.Part{Path: change.Path, From: change.From, Kind: change.Kind}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Request returns what a grouper would be asked to solve for this run, without
+// grouping or changing anything. An agent that made the changes can answer it
+// from its own knowledge of why it made them.
+func (e *Engine) Request(ctx context.Context, opts Options) (group.Request, error) {
+	_, _, in, err := e.prepare(ctx, opts)
+	if err != nil {
+		return group.Request{}, err
+	}
+	return group.NewRequest(in), nil
+}
+
+// prepare runs every step of planning that comes before grouping: the
+// readiness checks, the absorb or rewrite boundary, the survey, the generated
+// output holdback, and the diffs. It returns the partial plan, every surveyed
+// change, and the input the grouper sees.
+func (e *Engine) prepare(ctx context.Context, opts Options) (*plan.Plan, []repo.Change, group.Input, error) {
+	if err := e.Repo.CheckReady(ctx); err != nil {
+		return nil, nil, group.Input{}, err
+	}
+	built := &plan.Plan{}
+
+	if opts.Absorb || opts.Pushed {
+		base, err := e.rewriteBase(ctx, opts)
+		if err != nil {
+			return nil, nil, group.Input{}, err
+		}
+		check, err := e.Repo.CheckMerges(ctx, base)
+		if err != nil {
+			return nil, nil, group.Input{}, err
+		}
+		absorbed, err := e.Repo.Log(ctx, check.SafeBase+"..HEAD")
+		if err != nil {
+			return nil, nil, group.Input{}, err
+		}
+		if opts.Pushed {
+			if err := e.allowRewrite(ctx, opts); err != nil {
+				return nil, nil, group.Input{}, err
+			}
+			built.Push, err = e.pushPlan(ctx)
+			if err != nil {
+				return nil, nil, group.Input{}, err
+			}
+		} else if err := e.refusePushed(ctx, absorbed); err != nil {
+			return nil, nil, group.Input{}, err
+		}
+		built.Base = check.SafeBase
+		built.MergeSummary = check.Summary()
+		built.Absorbed = absorbed
+	}
+
+	changes, err := e.survey(ctx, opts, built.Base)
+	if err != nil {
+		return nil, nil, group.Input{}, err
+	}
+	if len(changes) == 0 && len(built.Absorbed) == 0 {
+		return nil, nil, group.Input{}, ErrNothingToDo
+	}
+	// Generated output is held back before the grouper ever sees it, so an
+	// external grouper cannot plan a commit for it either.
+	committable, held := holdGenerated(changes, opts.generatedMatcher())
+	built.Held = held
+	if len(committable) == 0 {
+		return nil, nil, group.Input{}, generatedOnly(held)
+	}
+
+	diffs, err := e.Repo.Diff(ctx, pathsOf(committable)...)
+	if err != nil {
+		return nil, nil, group.Input{}, err
+	}
+	// The tree hash lets an answer written ahead of time prove it was written
+	// for this exact tree, since hunk indexes mean nothing against another.
+	tree, err := e.Repo.ContentTree(ctx)
+	if err != nil {
+		return nil, nil, group.Input{}, err
+	}
+	return built, changes, group.Input{Changes: committable, Diffs: diffs, Tree: tree}, nil
 }
 
 // sweepAll scans both the diffs and any untracked file, which has no diff of
