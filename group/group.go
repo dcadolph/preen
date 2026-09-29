@@ -20,6 +20,9 @@ type Input struct {
 	// Diffs are the per-file patches, which carry the hunks a grouper may
 	// split across commits.
 	Diffs []repo.FileDiff
+	// Tree is the content hash of the tree the changes were read from, which an
+	// answer written ahead of time must match.
+	Tree string
 }
 
 // DiffFor returns the patch for a path, and whether one exists. A deletion or

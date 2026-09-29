@@ -231,6 +231,24 @@ func TestEdits(t *testing.T) {
 			Apply: func(p *Plan) error { return p.Reorder([]int{1, 2}) },
 			Want:  ErrInvalid,
 		},
+		{ // Test 10: Leaving a path a commit holds drops it from that commit.
+			Name:      "leave a committed path",
+			Apply:     func(p *Plan) error { return p.LeavePath(Part{Path: "docs.md"}) },
+			WantCount: 2,
+			WantFirst: "Add api",
+		},
+		{ // Test 11: Leaving a path no commit took still accounts for it.
+			Name: "leave a path no commit took",
+			Apply: func(p *Plan) error {
+				if err := p.DropPath("docs.md"); err != nil {
+					return err
+				}
+				p.Leftover = nil
+				return p.LeavePath(Part{Path: "docs.md"})
+			},
+			WantCount: 2,
+			WantFirst: "Add api",
+		},
 	}
 
 	for testNum, test := range tests {

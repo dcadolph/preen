@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/dcadolph/preen/group"
 	"github.com/dcadolph/preen/plan"
 	"github.com/dcadolph/preen/repo"
 	"github.com/dcadolph/preen/run"
@@ -26,9 +27,12 @@ Commands:
   (none)      Group the working tree into commits.
   restore     Undo a preen run from its backup ref.
   backups     List the recovery refs preen has left behind.
+  request     Print the grouping request, for an agent to answer.
 
 Run flags:
   --scope PATH    Preen only paths under PATH. Repeatable.
+  --leave PATH    Leave PATH uncommitted, as drop does at the prompt. It still
+                  appears in the plan. Repeatable.
   --gate CMD      Run CMD after each commit; a failure rolls the run back.
   --absorb        Bring unpushed commits back and redo them.
   --fixup         Fold changes into the unpushed commits that introduced them.
@@ -44,6 +48,10 @@ Run flags:
                   PROG reads JSON on stdin and writes JSON on stdout, and can
                   split one file's hunks across commits. It falls back to the
                   built-in rules if it fails or answers with anything unusable.
+  --grouping FILE Group as FILE says: an answer to preen request, written by
+                  the agent that made the changes. It never falls back. An
+                  answer for another tree, or naming anything not in this one,
+                  is an error.
   --dry-run       Show the plan and stop.
   --yes           Skip the approval prompt.
   --no-verify     Skip commit hooks. Requires your explicit consent.
@@ -80,6 +88,8 @@ Examples:
   preen
   preen --scope internal --gate 'go test ./...'
   preen --absorb --dry-run
+  preen request > /tmp/request.json
+  preen --grouping /tmp/answer.json --dry-run
   preen --conventional --prefix ABC-123
   preen restore
   preen backups --prune
@@ -136,6 +146,8 @@ func dispatch(ctx context.Context, env *environment, args []string) (int, error)
 			return runRestore(ctx, env, args[1:])
 		case "backups":
 			return runBackups(ctx, env, args[1:])
+		case "request":
+			return runRequest(ctx, env, args[1:])
 		case "help", "-h", "--help":
 			env.print(usage)
 			return CodeOK, nil
@@ -175,7 +187,7 @@ func exitCode(err error) int {
 		return CodeContentChanged
 	case errors.Is(err, run.ErrGateFailed):
 		return CodeGateFailed
-	case errors.Is(err, plan.ErrInvalid):
+	case errors.Is(err, plan.ErrInvalid), errors.Is(err, group.ErrStale), errors.Is(err, group.ErrResponse):
 		return CodeInvalidPlan
 	case errors.Is(err, ErrAborted):
 		return CodeAborted

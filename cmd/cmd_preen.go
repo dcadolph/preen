@@ -7,6 +7,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/dcadolph/preen/config"
@@ -42,7 +44,16 @@ func runPreen(ctx context.Context, env *environment, args []string) (int, error)
 	// The grouper writes subjects, so it is told the length they have to fit.
 	builtIn := group.Heuristic{RespectStaged: true, MaxSubject: subjectBudget(opts.Style)}
 	engine.Grouper = builtIn
-	if settings.Grouper != "" {
+	switch {
+	case settings.Grouping != "":
+		answer, err := outsideRepo(env, settings.Grouping, repository.Root())
+		if err != nil {
+			return CodeErr, err
+		}
+		// The answer's author is waiting on this run, so a bad answer is
+		// reported to them rather than papered over with the built-in rules.
+		engine.Grouper = group.Answer{Path: answer}
+	case settings.Grouper != "":
 		// A grouper that fails or answers with something unusable falls back to
 		// the built-in rules rather than taking the run down with it.
 		engine.Grouper = group.Chain(
@@ -168,9 +179,10 @@ func parseRunFlags(env *environment, args []string) (opts run.Options, settings 
 	fs.SetOutput(env.Err)
 	fs.Usage = func() { env.print(usage) }
 
-	var scope stringList
-	var grouperCmd string
+	var scope, leave stringList
+	var grouperCmd, grouping string
 	fs.Var(&scope, "scope", "limit the run to paths under this prefix (repeatable)")
+	fs.Var(&leave, "leave", "leave this change uncommitted (repeatable)")
 	fs.StringVar(&opts.Gate, "gate", "", "command to run after each commit")
 	fs.BoolVar(&opts.Absorb, "absorb", false, "bring unpushed commits back and redo them")
 	fs.BoolVar(&opts.Fixup, "fixup", false, "fold changes into the unpushed commits that introduced them")
@@ -180,6 +192,7 @@ func parseRunFlags(env *environment, args []string) (opts run.Options, settings 
 		"permit a rewrite on a protected branch, when the branch is yours alone")
 	fs.StringVar(&grouperCmd, "grouper", "",
 		"program that groups the changes, reading JSON on stdin and writing JSON on stdout")
+	fs.StringVar(&grouping, "grouping", "", "file holding an answer to preen request")
 	fs.BoolVar(&opts.NoVerify, "no-verify", false, "skip commit hooks")
 	fs.BoolVar(&opts.AllowHookRewrites, "allow-hook-rewrites", false,
 		"accept content changes a commit hook made to files the run committed")
@@ -215,6 +228,7 @@ func parseRunFlags(env *environment, args []string) (opts run.Options, settings 
 		return run.Options{}, promptSettings{}, flag.ErrHelp
 	}
 	opts.Scope = scope
+	opts.Leave = leave
 	if punctuation != "" {
 		switch style.Punctuation(punctuation) {
 		case style.PunctAuto, style.PunctAlways, style.PunctNever:
@@ -233,8 +247,47 @@ func parseRunFlags(env *environment, args []string) (opts run.Options, settings 
 				fmt.Errorf("%w: --body must be auto, always, or never", ErrUsage)
 		}
 	}
+	if grouping != "" && grouperCmd != "" {
+		return run.Options{}, promptSettings{},
+			fmt.Errorf("%w: --grouping and --grouper are two answers to one question; pass one", ErrUsage)
+	}
+	if grouping != "" && opts.Fixup {
+		return run.Options{}, promptSettings{},
+			fmt.Errorf("%w: --fixup routes changes to the commits that introduced them and takes no grouping", ErrUsage)
+	}
 	settings.Grouper = grouperCmd
+	settings.Grouping = grouping
 	return opts, settings, nil
+}
+
+// outsideRepo resolves an answer path against the directory preen runs from
+// and refuses one inside the repository. Writing it there adds a change to the
+// very tree it answers, so its hash could never match.
+func outsideRepo(env *environment, path, root string) (string, error) {
+	if !filepath.IsAbs(path) {
+		dir := env.Dir
+		if dir == "" {
+			var err error
+			if dir, err = os.Getwd(); err != nil {
+				return "", err
+			}
+		}
+		path = filepath.Join(dir, path)
+	}
+	// git reports the root with symlinks resolved, so the answer's directory is
+	// resolved too before the two are compared.
+	resolved := path
+	if dir, err := filepath.EvalSymlinks(filepath.Dir(path)); err == nil {
+		resolved = filepath.Join(dir, filepath.Base(path))
+	}
+	if realRoot, err := filepath.EvalSymlinks(root); err == nil {
+		root = realRoot
+	}
+	if rel, err := filepath.Rel(root, resolved); err == nil && rel != ".." && !strings.HasPrefix(rel, "../") {
+		return "", fmt.Errorf("%w: --grouping %s is inside the repository, which changes the tree it answers; "+
+			"write the request and the answer outside it", ErrUsage, path)
+	}
+	return path, nil
 }
 
 // promptSettings are the decisions the CLI owns rather than the engine.
@@ -245,6 +298,8 @@ type promptSettings struct {
 	Yes bool
 	// Grouper is a program to group the changes instead of the built-in rules.
 	Grouper string
+	// Grouping is a file holding an answer to preen request.
+	Grouping string
 }
 
 // reportRun prints what a completed run did and how to undo it. The undo line

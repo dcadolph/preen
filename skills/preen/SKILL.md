@@ -11,9 +11,11 @@ description: >-
   changes into the unpushed commits that introduced them, --yes skips the
   approval prompt, --pushed grants the explicit ask a pushed rewrite requires,
   --allow-generated commits build output preen would otherwise hold back.
-  Triggers: "preen", "split my diff", "clean up my commit history", "fix
-  my last commits", "reword these commits", "resplit my commits", "fold my
-  changes into the right commits".
+  When Claude made the changes itself, it answers the grouping from preen
+  request with --grouping, since it knows why each hunk exists. Triggers:
+  "preen", "split my diff", "clean up my commit history", "fix my last
+  commits", "reword these commits", "resplit my commits", "fold my changes
+  into the right commits".
 ---
 
 # preen
@@ -46,6 +48,32 @@ When the user wants the plan changed, prefer flags that reshape the run
 run. For fine-grained edits like merging or reordering planned commits, tell
 the user to run `preen` themselves: its prompt accepts merge, split, move,
 reword, drop, and reorder interactively.
+
+## When you made the changes
+
+If the changes came from you, in this session, you know why each hunk exists,
+and the built-in rules do not: they group by package and never split a file.
+Answer the grouping yourself instead of taking their plan.
+
+1. Write the request outside the repository, since a file written inside it
+   changes the tree the request describes:
+   `preen request --pretty > "${TMPDIR:-/tmp}/preen-request.json"`, plus any
+   `--scope` or `--absorb` the run will use.
+2. Read it. Write an answer beside it holding `tree` copied unchanged from the
+   request and `commits` in the order they should land, one commit per change
+   you made for one reason. A part without `hunks` takes the whole file. List
+   hunk indexes only for a file whose hunks served different changes. Subjects
+   follow the repository's commit style, and preen verifies them against it.
+3. Every change must be committed or left. Pass `--leave PATH` for scratch
+   files you created that do not belong in history, and name them to the user.
+4. `preen --grouping <answer> --leave ... --dry-run` and show the plan to the
+   user unchanged. After approval, the same with `--yes` in place of
+   `--dry-run`.
+
+Exit code 5 with "does not match this tree" means something changed after the
+request: run `preen request` again and answer the new one. Never edit the tree
+hash to make an answer fit. Changes you did not make, or made in an earlier
+session, go to the built-in rules with plain `preen`.
 
 ## Choosing flags
 
