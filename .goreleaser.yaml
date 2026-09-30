@@ -14,7 +14,7 @@ builds:
     goos: [darwin, linux, windows]
     goarch: [amd64, arm64]
     ldflags:
-      - -s -w -X github.com/dcadolph/preen/cmd.Version={{ .Version }}
+      - -s -w -X github.com/dcadolph/preen/v2/cmd.Version={{ .Version }}
 
 archives:
   - formats: [tar.gz]

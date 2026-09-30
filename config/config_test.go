@@ -10,7 +10,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	"github.com/dcadolph/preen/style"
+	"github.com/dcadolph/preen/v2/style"
 )
 
 // writeConfig puts a .preen.toml in a temp directory and returns the root.

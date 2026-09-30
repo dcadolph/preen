@@ -11,7 +11,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/dcadolph/preen/plan"
+	"github.com/dcadolph/preen/v2/plan"
 )
 
 // BodyMode controls when a commit gets a message body.

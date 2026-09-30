@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dcadolph/preen/plan"
-	"github.com/dcadolph/preen/repo"
-	"github.com/dcadolph/preen/run"
+	"github.com/dcadolph/preen/v2/plan"
+	"github.com/dcadolph/preen/v2/repo"
+	"github.com/dcadolph/preen/v2/run"
 )
 
 // cli is a repository plus the streams a command reads and writes, so a test

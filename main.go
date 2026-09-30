@@ -6,7 +6,7 @@ package main
 import (
 	"os"
 
-	"github.com/dcadolph/preen/cmd"
+	"github.com/dcadolph/preen/v2/cmd"
 )
 
 // main delegates to cmd.Execute and exits with its code.

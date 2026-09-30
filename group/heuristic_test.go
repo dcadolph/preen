@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dcadolph/preen/plan"
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/plan"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // changesOf builds a change set of modified paths.

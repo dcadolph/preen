@@ -16,12 +16,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dcadolph/preen/generated"
-	"github.com/dcadolph/preen/group"
-	"github.com/dcadolph/preen/plan"
-	"github.com/dcadolph/preen/repo"
-	"github.com/dcadolph/preen/style"
-	"github.com/dcadolph/preen/sweep"
+	"github.com/dcadolph/preen/v2/generated"
+	"github.com/dcadolph/preen/v2/group"
+	"github.com/dcadolph/preen/v2/plan"
+	"github.com/dcadolph/preen/v2/repo"
+	"github.com/dcadolph/preen/v2/style"
+	"github.com/dcadolph/preen/v2/sweep"
 )
 
 // Options control a single run.

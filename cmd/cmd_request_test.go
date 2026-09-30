@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dcadolph/preen/group"
+	"github.com/dcadolph/preen/v2/group"
 )
 
 // agentMess commits a file with two functions far apart, then edits both ends

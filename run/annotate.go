@@ -6,9 +6,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dcadolph/preen/plan"
-	"github.com/dcadolph/preen/repo"
-	"github.com/dcadolph/preen/style"
+	"github.com/dcadolph/preen/v2/plan"
+	"github.com/dcadolph/preen/v2/repo"
+	"github.com/dcadolph/preen/v2/style"
 )
 
 // annotate adds the body detail a run is configured to include, before the

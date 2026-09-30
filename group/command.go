@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/dcadolph/preen/plan"
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/plan"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // Request is what a command grouper is asked to solve, written as JSON on

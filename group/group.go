@@ -9,8 +9,8 @@ package group
 import (
 	"context"
 
-	"github.com/dcadolph/preen/plan"
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/plan"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // Input is everything a grouper sees about the working tree.

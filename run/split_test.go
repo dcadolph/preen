@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dcadolph/preen/group"
-	"github.com/dcadolph/preen/plan"
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/group"
+	"github.com/dcadolph/preen/v2/plan"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // spreadFile has widely separated regions, so edits at the top and bottom

@@ -1,4 +1,4 @@
-module github.com/dcadolph/preen
+module github.com/dcadolph/preen/v2
 
 go 1.26.4
 

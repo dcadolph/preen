@@ -7,9 +7,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/dcadolph/preen/plan"
-	"github.com/dcadolph/preen/repo"
-	"github.com/dcadolph/preen/style"
+	"github.com/dcadolph/preen/v2/plan"
+	"github.com/dcadolph/preen/v2/repo"
+	"github.com/dcadolph/preen/v2/style"
 )
 
 // category is a class of change that belongs in its own commit.

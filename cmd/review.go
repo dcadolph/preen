@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/dcadolph/preen/plan"
+	"github.com/dcadolph/preen/v2/plan"
 )
 
 // review runs the approval prompt, applying edits until the plan is accepted

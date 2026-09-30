@@ -3,9 +3,9 @@ package cmd
 import (
 	"strings"
 
-	"github.com/dcadolph/preen/config"
-	"github.com/dcadolph/preen/run"
-	"github.com/dcadolph/preen/style"
+	"github.com/dcadolph/preen/v2/config"
+	"github.com/dcadolph/preen/v2/run"
+	"github.com/dcadolph/preen/v2/style"
 )
 
 // applyConfig fills in the options a repository's config file supplies,
