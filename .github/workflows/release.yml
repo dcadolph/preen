@@ -19,6 +19,18 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # The Claude Code plugin reports its own version, which nothing else
+      # updates. Stop before building anything when it disagrees with the tag.
+      - name: Check the plugin version matches the tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          want="${GITHUB_REF_NAME#v}"
+          got="$(jq -r .version .claude-plugin/plugin.json)"
+          if [ "$got" != "$want" ]; then
+            echo "::error::.claude-plugin/plugin.json says $got but the tag is $GITHUB_REF_NAME"
+            exit 1
+          fi
+
       # goreleaser runs after the tag push that created the release, and it
       # resets the release name to the bare tag. Remember the title first so
       # the descriptive one can be put back.
