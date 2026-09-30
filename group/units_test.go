@@ -8,7 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // grouped is one planned commit flattened to the two things a caller judges it

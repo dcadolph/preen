@@ -10,7 +10,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	"github.com/dcadolph/preen/plan"
+	"github.com/dcadolph/preen/v2/plan"
 )
 
 // pycache is the path that exposed the gap: a Python bytecode cache the test

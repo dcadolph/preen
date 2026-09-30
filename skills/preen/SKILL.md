@@ -28,7 +28,7 @@ the right flags, relay the plan, and report the result.
 ## Preflight
 
 - Confirm the binary is available: `preen --version`. If it is missing, offer
-  `go install github.com/dcadolph/preen@latest` and stop until the user
+  `go install github.com/dcadolph/preen/v2@latest` and stop until the user
   agrees.
 - Confirm a git repository and a dirty tree or redoable commits. If there is
   nothing to do, say so and stop.

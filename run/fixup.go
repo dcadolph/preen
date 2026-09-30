@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/dcadolph/preen/plan"
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/plan"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // FixupPlan is a fixup run's intent: the plan to render and approve, plus the

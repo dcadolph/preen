@@ -7,9 +7,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/dcadolph/preen/generated"
-	"github.com/dcadolph/preen/plan"
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/generated"
+	"github.com/dcadolph/preen/v2/plan"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // shellGate runs a gate command through the shell, so a configured check can

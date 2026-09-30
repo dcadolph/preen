@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // Hunk identifies one hunk a commit takes from a file.

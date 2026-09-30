@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dcadolph/preen/style"
+	"github.com/dcadolph/preen/v2/style"
 )
 
 // TestIncludeFilesListsPaths checks that the body names what the commit

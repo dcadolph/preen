@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // TestMain isolates the package from the developer's git configuration.

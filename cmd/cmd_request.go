@@ -6,8 +6,8 @@ import (
 	"errors"
 	"flag"
 
-	"github.com/dcadolph/preen/config"
-	"github.com/dcadolph/preen/run"
+	"github.com/dcadolph/preen/v2/config"
+	"github.com/dcadolph/preen/v2/run"
 )
 
 // requestUsage is the help text for the request command.

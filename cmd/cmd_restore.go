@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // restoreUsage is the help text for the restore command.

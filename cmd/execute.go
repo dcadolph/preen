@@ -10,10 +10,10 @@ import (
 	"io"
 	"os"
 
-	"github.com/dcadolph/preen/group"
-	"github.com/dcadolph/preen/plan"
-	"github.com/dcadolph/preen/repo"
-	"github.com/dcadolph/preen/run"
+	"github.com/dcadolph/preen/v2/group"
+	"github.com/dcadolph/preen/v2/plan"
+	"github.com/dcadolph/preen/v2/repo"
+	"github.com/dcadolph/preen/v2/run"
 )
 
 // usage is the top-level help text.
@@ -152,7 +152,7 @@ func dispatch(ctx context.Context, env *environment, args []string) (int, error)
 			env.print(usage)
 			return CodeOK, nil
 		case "--version":
-			env.printf("preen %s\n", Version)
+			env.printf("preen %s\n", version())
 			return CodeOK, nil
 		}
 	}

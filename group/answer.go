@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/dcadolph/preen/plan"
+	"github.com/dcadolph/preen/v2/plan"
 )
 
 // Answer groups changes as a response written ahead of time says. It exists

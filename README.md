@@ -65,7 +65,7 @@ brew install --cask dcadolph/tap/preen
 Or with Go:
 
 ```
-go install github.com/dcadolph/preen@latest
+go install github.com/dcadolph/preen/v2@latest
 ```
 
 Prebuilt archives for macOS, Linux, and Windows are on the

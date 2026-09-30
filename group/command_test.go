@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // fakeGrouper writes a shell script that echoes a fixed response, standing in

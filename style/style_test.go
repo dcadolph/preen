@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dcadolph/preen/plan"
+	"github.com/dcadolph/preen/v2/plan"
 )
 
 // TestApply checks that each style rule reshapes a message the way it says,

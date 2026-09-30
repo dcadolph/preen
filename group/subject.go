@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // maxNamedFiles is how many files a subject names outright before it gives up

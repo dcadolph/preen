@@ -5,7 +5,7 @@ import (
 	"errors"
 	"flag"
 
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // backupsUsage is the help text for the backups command.

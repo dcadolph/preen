@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dcadolph/preen/repo"
+	"github.com/dcadolph/preen/v2/repo"
 )
 
 // changes builds a change set from paths, the shape Validate checks against.

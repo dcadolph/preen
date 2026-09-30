@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
-	"github.com/dcadolph/preen/style"
+	"github.com/dcadolph/preen/v2/style"
 )
 
 // FileName is the config file preen looks for at the repository root.

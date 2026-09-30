@@ -11,11 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/dcadolph/preen/config"
-	"github.com/dcadolph/preen/group"
-	"github.com/dcadolph/preen/plan"
-	"github.com/dcadolph/preen/run"
-	"github.com/dcadolph/preen/style"
+	"github.com/dcadolph/preen/v2/config"
+	"github.com/dcadolph/preen/v2/group"
+	"github.com/dcadolph/preen/v2/plan"
+	"github.com/dcadolph/preen/v2/run"
+	"github.com/dcadolph/preen/v2/style"
 )
 
 // runPreen is the default command: survey the tree, show a plan, and apply it
@@ -224,7 +224,7 @@ func parseRunFlags(env *environment, args []string) (opts run.Options, settings 
 		return run.Options{}, promptSettings{}, err
 	}
 	if *showVersion {
-		env.printf("preen %s\n", Version)
+		env.printf("preen %s\n", version())
 		return run.Options{}, promptSettings{}, flag.ErrHelp
 	}
 	opts.Scope = scope
