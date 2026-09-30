@@ -1,5 +1,7 @@
 module github.com/dcadolph/preen
 
-go 1.26.4
+go 1.21
 
-require github.com/BurntSushi/toml v1.6.0
+retract (
+	[v0.0.0, v1.0.0] // Superseded by github.com/dcadolph/preen/v2.
+)
