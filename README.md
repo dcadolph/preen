@@ -59,8 +59,17 @@ and untracked files untracked.
 ## Install
 
 ```
+brew install --cask dcadolph/tap/preen
+```
+
+Or with Go:
+
+```
 go install github.com/dcadolph/preen@latest
 ```
+
+Prebuilt archives for macOS, Linux, and Windows are on the
+[releases page](https://github.com/dcadolph/preen/releases/latest).
 
 preen is a single binary. It needs `git` on your `PATH` and nothing else: no
 model, no API key, no network.
