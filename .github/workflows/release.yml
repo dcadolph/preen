@@ -7,6 +7,10 @@ on:
 
 permissions:
   contents: write
+  # Keyless signing and build provenance: the job's OIDC token mints the short-lived signing
+  # certificate, and the attestation is stored against this repository.
+  id-token: write
+  attestations: write
 
 jobs:
   goreleaser:
@@ -50,6 +54,44 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+
+      # One keyless signature over checksums.txt covers every archive through its checksum.
+      # Self-verified immediately with the same identity check a downloader would run, so a
+      # release cannot ship a signature its own instructions would reject.
+      - name: Sign the checksums
+        run: |
+          set -euo pipefail
+          cd dist
+          for i in 1 2 3; do
+            if cosign sign-blob --yes checksums.txt \
+                --output-signature checksums.txt.sig \
+                --output-certificate checksums.txt.pem; then
+              break
+            fi
+            if [ "$i" = 3 ]; then exit 1; fi
+            sleep 15
+          done
+          cosign verify-blob checksums.txt \
+            --signature checksums.txt.sig \
+            --certificate checksums.txt.pem \
+            --certificate-identity-regexp '^https://github.com/dcadolph/preen/\.github/workflows/release\.yml@refs/tags/v' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          sha256sum -c checksums.txt
+
+      - name: Attach the signature to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/checksums.txt.sig dist/checksums.txt.pem --clobber
+
+      # SLSA build provenance for every published archive, checkable with `gh attestation verify`.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.zip
 
       - name: Restore the release title
         if: steps.title.outputs.name != '' && steps.title.outputs.name != github.ref_name
