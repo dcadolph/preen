@@ -74,6 +74,21 @@ Prebuilt archives for macOS, Linux, and Windows are on the
 preen is a single binary. It needs `git` on your `PATH` and nothing else: no
 model, no API key, no network.
 
+### Verifying a release
+
+`checksums.txt` carries a keyless Sigstore signature made by this repository's release
+workflow, and every archive carries SLSA build provenance. Check a download before you run it:
+
+```
+cosign verify-blob checksums.txt \
+  --signature checksums.txt.sig \
+  --certificate checksums.txt.pem \
+  --certificate-identity-regexp '^https://github.com/dcadolph/preen/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+sha256sum -c checksums.txt --ignore-missing
+gh attestation verify preen_<version>_linux_amd64.tar.gz --repo dcadolph/preen
+```
+
 ## Use
 
 Run it against a dirty working tree:
