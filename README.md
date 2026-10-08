@@ -15,8 +15,8 @@ anything moves.
 
 You got in the zone and came out with forty changed files and no commits, or one
 giant blob with a message like `wip` that you are not proud of. preen turns that
-into a clean, ordered set of small, self-contained commits: the shape of the
-history you would have written if you had committed carefully as you went.
+into a clean, ordered set of small, self-contained commits, grouped by what
+changed rather than by what you meant to do.
 
 Think `git add -p` and `git rebase -i`, done for you. preen reads everything you
 changed, groups it into coherent commits, writes a subject for each, orders them
