@@ -9,10 +9,9 @@ import (
 )
 
 // Answer groups changes as a response written ahead of time says. It exists
-// for the agent that made the changes: that agent knows why each hunk exists,
-// which no rule and no model reading the diff cold can recover, so it answers
-// the request from `preen request` itself and preen verifies the answer like
-// any other.
+// for the agent that made the changes: that agent knows why each hunk exists
+// rather than inferring it from the diff, so it answers the request from
+// `preen request` itself and preen verifies the answer like any other.
 //
 // Unlike Command, an Answer is never paired with a fallback. Whoever wrote it
 // is waiting on the result, so a stale or malformed answer is an error to fix,
