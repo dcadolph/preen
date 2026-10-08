@@ -19,9 +19,9 @@ into a clean, ordered set of small, self-contained commits, grouped by what
 changed rather than by what you meant to do.
 
 Think `git add -p` and `git rebase -i`, done for you. preen reads everything you
-changed, groups it into coherent commits, writes a subject for each, orders them
-so dependencies land first, and shows you the plan first. Nothing moves until
-you approve.
+changed, groups it by package and kind of change, writes a subject for each,
+orders them so dependencies land first, and shows you the plan first. Nothing
+moves until you approve.
 
 Rewriting history is not a thing to take on faith, so preen does not ask you to.
 Before a run it hashes your `HEAD` plus every staged, unstaged, and untracked
@@ -33,8 +33,10 @@ made before it started. Every run leaves a `preen-backup/<timestamp>` branch and
 The built-in subjects say what changed, not why: `Add cmd/parser.go and its
 test`, `Update dependencies`. Every one of them is built from the file list and
 nothing else, so a subject is a claim the commit can be checked against. For
-messages that explain intent, hand grouping to any program you like with
-`--grouper`, a model included, and reword anything at the approval prompt.
+commits that follow intent rather than structure, hand grouping to any program
+you like with `--grouper`, a model included. A model reads the diff for
+meaning, which the built-in rules never attempt, and can write subjects that
+say why. Reword anything at the approval prompt either way.
 
 Clean history is worth having on its own. It makes review readable, `git bisect`
 useful, and `git blame` honest. preen gets you there without the tedious
@@ -221,8 +223,8 @@ than trusting it.
 ### When an agent made the changes
 
 A coding agent that just spent an hour in your tree knows why it touched every
-hunk, which no rule and no model reading the diff cold can recover. So it can
-answer the grouping request itself:
+hunk. It does not have to infer intent from the diff the way a `--grouper`
+does, so it can answer the grouping request itself:
 
 ```
 preen request > /tmp/request.json
