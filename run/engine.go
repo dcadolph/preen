@@ -620,7 +620,8 @@ func withinCommitted(diverged []string, commits []Recorded) bool {
 // rollback restores from the backup ref and returns an error describing both
 // the original failure and the state the repository was left in.
 func (e *Engine) rollback(ctx context.Context, backup string, cause error) error {
-	if err := e.Repo.RestoreBackup(ctx, backup); err != nil {
+	// A canceled run must still be undone, so the restore ignores cancellation.
+	if err := e.Repo.RestoreBackup(context.WithoutCancel(ctx), backup); err != nil {
 		return fmt.Errorf("%w (restore from %s also failed: %w)", cause, backup, err)
 	}
 	return fmt.Errorf("%w (restored from %s)", cause, backup)
