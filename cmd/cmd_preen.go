@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/dcadolph/preen/v2/config"
 	"github.com/dcadolph/preen/v2/group"
@@ -96,7 +98,9 @@ func runPreen(ctx context.Context, env *environment, args []string) (int, error)
 		}
 	}
 
-	result, err := engine.Apply(ctx, built, opts)
+	applyCtx, stop := interruptible(ctx)
+	defer stop()
+	result, err := engine.Apply(applyCtx, built, opts)
 	if err != nil {
 		return exitCode(err), err
 	}
@@ -106,6 +110,13 @@ func runPreen(ctx context.Context, env *environment, args []string) (int, error)
 		return publish(ctx, env, engine, built, settings)
 	}
 	return CodeOK, nil
+}
+
+// interruptible returns a context canceled by Ctrl-C or SIGTERM. It wraps only
+// the rewrite itself, so an interrupt there rolls the run back, while an
+// interrupt at the approval prompt still ends the process at once.
+func interruptible(ctx context.Context) (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 }
 
 // runFixup folds dirty changes into the unpushed commits that introduced them.
@@ -141,7 +152,9 @@ func runFixup(ctx context.Context, env *environment, engine *run.Engine,
 			return CodeAborted, nil
 		}
 	}
-	result, err := engine.ApplyFixup(ctx, built, opts)
+	applyCtx, stop := interruptible(ctx)
+	defer stop()
+	result, err := engine.ApplyFixup(applyCtx, built, opts)
 	if err != nil {
 		return exitCode(err), err
 	}

@@ -11,6 +11,10 @@ import (
 // Only branches beneath it are ever pruning candidates.
 const BackupPrefix = "preen-backup/"
 
+// indexPrefix is the ref namespace holding the staged state each backup was
+// taken with. A ref can point at a tree, so no commit is needed.
+const indexPrefix = "refs/preen-index/"
+
 // Backup is a recovery branch left behind by a preen run.
 type Backup struct {
 	// Name is the branch name, including the preen-backup/ prefix.
@@ -36,7 +40,21 @@ func (r *Repo) CreateBackup(ctx context.Context, now time.Time) (string, error) 
 	if _, err := r.run(ctx, "branch", name); err != nil {
 		return "", fmt.Errorf("backup branch: %w", err)
 	}
+	// The index is saved beside the branch because a mixed reset on restore
+	// would otherwise turn everything the user had staged into unstaged work.
+	tree, err := r.run(ctx, "write-tree")
+	if err != nil {
+		return "", fmt.Errorf("backup index: %w", err)
+	}
+	if _, err := r.run(ctx, "update-ref", indexRef(name), tree); err != nil {
+		return "", fmt.Errorf("backup index: %w", err)
+	}
 	return name, nil
+}
+
+// indexRef names the ref holding the staged state saved with a backup.
+func indexRef(backup string) string {
+	return indexPrefix + strings.TrimPrefix(backup, BackupPrefix)
 }
 
 // refExists reports whether a ref resolves.
@@ -105,8 +123,20 @@ func (r *Repo) DeleteBackup(ctx context.Context, name string) error {
 	if !strings.HasPrefix(name, BackupPrefix) {
 		return fmt.Errorf("refusing to delete %q: not a %s ref", name, BackupPrefix)
 	}
-	_, err := r.run(ctx, "branch", "-D", name)
-	return err
+	if _, err := r.run(ctx, "branch", "-D", name); err != nil {
+		return err
+	}
+	if r.refResolves(ctx, indexRef(name)) {
+		_, err := r.run(ctx, "update-ref", "-d", indexRef(name))
+		return err
+	}
+	return nil
+}
+
+// refResolves reports whether a full ref name resolves.
+func (r *Repo) refResolves(ctx context.Context, name string) bool {
+	_, err := r.run(ctx, "rev-parse", "--verify", "--quiet", name)
+	return err == nil
 }
 
 // RestoreBackup moves the current branch back to a backup ref, undoing a run
@@ -114,15 +144,24 @@ func (r *Repo) DeleteBackup(ctx context.Context, name string) error {
 //
 // The reset is deliberately mixed. A preen run only reshapes history, so undo
 // must move HEAD and the index while leaving the working tree untouched, which
-// puts the content back in the messy state it started in. Neither --hard nor
+// puts the content back in the messy state it started in. The staged state
+// saved with the backup is then read back into the index, so what was staged
+// before the run is staged again. Neither --hard nor
 // --keep is safe here: both update tracked files to the target commit, which
 // deletes from disk every file the undone commits had added.
 func (r *Repo) RestoreBackup(ctx context.Context, name string) error {
 	if !strings.HasPrefix(name, BackupPrefix) {
 		return fmt.Errorf("refusing to restore from %q: not a %s ref", name, BackupPrefix)
 	}
-	_, err := r.run(ctx, "reset", "--mixed", name)
-	return err
+	if _, err := r.run(ctx, "reset", "--mixed", name); err != nil {
+		return err
+	}
+	if saved := indexRef(name); r.refResolves(ctx, saved) {
+		if _, err := r.run(ctx, "read-tree", saved); err != nil {
+			return fmt.Errorf("restore staged state: %w", err)
+		}
+	}
+	return nil
 }
 
 // parseUnix converts a unix timestamp string into a time.

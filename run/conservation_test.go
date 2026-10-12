@@ -395,3 +395,68 @@ func TestHardStopIsRecoverableFromTheBackup(t *testing.T) {
 	}
 	h.requireRolledBack(head, disk)
 }
+
+// TestRollbackRestoresWhatWasStaged checks that a failed run puts the index
+// back as it was: the file staged by hand is staged again, and the edit made on
+// top of it stays unstaged.
+func TestRollbackRestoresWhatWasStaged(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	h := newHarness(t)
+	h.messyTree()
+	h.write("api/server.go", "package api\n\nfunc Serve() {}\n\nfunc More() {}\n")
+	h.git("add", "api/server.go", "docs/guide.md")
+	h.write("api/server.go", "package api\n\nfunc Serve() {}\n\nfunc More() {}\n\nfunc Extra() {}\n")
+	statusBefore := h.git("status", "--porcelain=v1")
+
+	h.Gate = GateFunc(func(context.Context, string, string) ([]byte, error) {
+		return []byte("boom"), errors.New("check failed")
+	})
+	p, err := h.Plan(ctx, Options{})
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	if _, err := h.Apply(ctx, p, Options{Gate: "check"}); !errors.Is(err, ErrGateFailed) {
+		t.Fatalf("Apply = %v, want a gate failure", err)
+	}
+	if diff := cmp.Diff(statusBefore, h.git("status", "--porcelain=v1")); diff != "" {
+		t.Errorf("staging not restored (-before +after):\n%s", diff)
+	}
+}
+
+// TestRestoreBringsBackWhatWasStaged checks the same for the manual path,
+// restoring from the backup branch after a run that died.
+func TestRestoreBringsBackWhatWasStaged(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	h := newHarness(t)
+	h.messyTree()
+	h.git("add", "docs/guide.md")
+	statusBefore := h.git("status", "--porcelain=v1")
+
+	h.Gate = GateFunc(func(context.Context, string, string) ([]byte, error) { panic("process died") })
+	p, err := h.Plan(ctx, Options{})
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	func() {
+		defer func() { _ = recover() }()
+		_, _ = h.Apply(ctx, p, Options{Gate: "check"})
+	}()
+	backups, err := h.Repo.ListBackups(ctx)
+	if err != nil || len(backups) != 1 {
+		t.Fatalf("ListBackups = %v, %v, want exactly one backup", backups, err)
+	}
+	if err := h.Repo.RestoreBackup(ctx, backups[0].Name); err != nil {
+		t.Fatalf("RestoreBackup: %v", err)
+	}
+	if diff := cmp.Diff(statusBefore, h.git("status", "--porcelain=v1")); diff != "" {
+		t.Errorf("staging not restored (-before +after):\n%s", diff)
+	}
+	if err := h.Repo.DeleteBackup(ctx, backups[0].Name); err != nil {
+		t.Fatalf("DeleteBackup: %v", err)
+	}
+	if refs := h.git("for-each-ref", "refs/preen-index/"); strings.TrimSpace(refs) != "" {
+		t.Errorf("saved index outlived its backup:\n%s", refs)
+	}
+}
